@@ -1,22 +1,42 @@
 /**
- * Prints the environment variables to paste into Vercel, derived from the
- * locally-generated stellar.config.json. Run: npm run stellar:env
+ * Prints the COMPLETE set of environment variables to paste into Vercel,
+ * derived from your local .env + stellar.config.json. Run: npm run stellar:env
+ *
+ * It reuses the exact AUTH_SECRET / WALLET_ENCRYPTION_KEY from your .env so the
+ * seeded demo account's login and encrypted wallet keep working in the cloud.
  */
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 
-const p = path.join(process.cwd(), "stellar.config.json");
-if (!fs.existsSync(p)) {
+function readEnv(): Record<string, string> {
+  const p = path.join(process.cwd(), ".env");
+  const out: Record<string, string> = {};
+  if (!fs.existsSync(p)) return out;
+  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (!m) continue;
+    out[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+  return out;
+}
+
+const e = readEnv();
+const cfgPath = path.join(process.cwd(), "stellar.config.json");
+if (!fs.existsSync(cfgPath)) {
   console.error("stellar.config.json not found — run `npm run stellar:bootstrap` first.");
   process.exit(1);
 }
-const c = JSON.parse(fs.readFileSync(p, "utf8"));
-const authSecret = crypto.randomBytes(32).toString("hex");
+const c = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+
+// The key used to encrypt wallet secrets at seed time = WALLET_ENCRYPTION_KEY or AUTH_SECRET.
+const walletKey = e.WALLET_ENCRYPTION_KEY || e.AUTH_SECRET || "";
+const authSecret = e.AUTH_SECRET || "";
 
 const lines = [
+  `DATABASE_URL=${e.DATABASE_URL ?? "<your-supabase-6543-pooler-url>"}`,
+  `DIRECT_URL=${e.DIRECT_URL ?? "<your-supabase-5432-direct-url>"}`,
   `AUTH_SECRET=${authSecret}`,
-  `WALLET_ENCRYPTION_KEY=${crypto.randomBytes(32).toString("hex")}`,
+  `WALLET_ENCRYPTION_KEY=${walletKey}`,
   `STELLAR_NETWORK=${c.network}`,
   `STELLAR_HORIZON_URL=${c.horizonUrl}`,
   `STELLAR_SOROBAN_RPC_URL=${c.sorobanRpcUrl}`,
@@ -29,8 +49,7 @@ const lines = [
   `STELLAR_DISTRIBUTOR_SECRET=${c.distributor.secret}`,
 ];
 
-console.log("\n# ---- Paste these into Vercel → Settings → Environment Variables ----");
-console.log("# (also add DATABASE_URL + DIRECT_URL from Supabase, see docs/DEPLOYMENT.md)\n");
+console.log("\n# ===== Paste ALL of these into Vercel → Settings → Environment Variables =====");
+console.log("# (Key = text before '=', Value = text after '='. Apply to Production, Preview, Development.)\n");
 console.log(lines.join("\n"));
-console.log("\n# Note: WALLET_ENCRYPTION_KEY here is NEW — if you already seeded a prod DB,");
-console.log("# keep the key you used at seed time so existing wallet secrets still decrypt.\n");
+console.log("\n# ✅ These match your seeded database, so demo@remitwise.app / demo1234 will work in the cloud.\n");
