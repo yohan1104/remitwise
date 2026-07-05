@@ -1,0 +1,99 @@
+// RemitWise database schema
+// ---------------------------------------------------------------------------
+// Uses SQLite for zero-config local demo. For production (Supabase / Postgres)
+// switch `provider` to "postgresql" and point DATABASE_URL at your instance —
+// the models below are written to be portable (no SQLite-only features).
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("postgresql://postgres.omkkuccylqpvfypplqst:[f27iYW9VVOb3RIAX]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true")
+  directUrl = env("postgresql://postgres.omkkuccylqpvfypplqst:[f27iYW9VVOb3RIAX]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  // Configurable auto-savings rate (0.20 = save 20% of every remittance)
+  savingsRate  Float    @default(0.2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  wallet       Wallet?
+  transactions Transaction[]
+  goals        Goal[]
+
+  @@index([email])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  publicKey String
+  // Encrypted at rest (AES-256-GCM). Testnet-only custodial storage — in
+  // production use a KMS / non-custodial signing flow (Freighter) instead.
+  secretKey String
+  network   String   @default("testnet")
+
+  // On-chain provisioning: funded via Friendbot + USDC trustline established.
+  provisioned Boolean @default(false)
+
+  // Fast-read mirror of on-chain state (source of truth is the Stellar vault):
+  //   availableBalance = user's on-chain USDC · savingsBalance = vault savings_of(user)
+  availableBalance Float @default(0)
+  savingsBalance   Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id       String @id @default(cuid())
+  userId   String
+  // remittance_received | savings_allocation | goal_contribution | withdrawal
+  type     String
+  amount   Float
+  asset    String @default("USDC")
+  sender   String?
+  memo     String?
+
+  // Populated for remittance_received: the auto-savings split snapshot.
+  savedAmount     Float?
+  availableAmount Float?
+
+  status     String  @default("completed")
+  stellarTxId String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Goal {
+  id            String  @id @default(cuid())
+  userId        String
+  name          String
+  // emergency | education | medical | housing | business | vacation | custom
+  category      String  @default("custom")
+  targetAmount  Float
+  currentAmount Float   @default(0)
+  color         String  @default("#2563eb")
+  isCompleted   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
