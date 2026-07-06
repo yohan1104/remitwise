@@ -53,9 +53,9 @@ const GOAL_COLORS: Record<string, string> = {
   medical: "#e11d48",
 };
 const GOALS = [
-  { name: "Emergency Fund", category: "emergency", targetAmount: 2000 },
-  { name: "Children's Education", category: "education", targetAmount: 3000 },
-  { name: "Family Medical", category: "medical", targetAmount: 1500 },
+  { name: "Emergency Fund", category: "emergency", targetAmount: 2000, priority: "high", allocationPct: 50 },
+  { name: "Children's Education", category: "education", targetAmount: 3000, priority: "medium", allocationPct: 30 },
+  { name: "Family Medical", category: "medical", targetAmount: 1500, priority: "medium", allocationPct: 20 },
 ];
 const REMITTANCES = [
   { amount: 450, sender: "Maria Santos", memo: "Monthly support", daysAgo: 34 },
@@ -105,6 +105,8 @@ async function main() {
         category: g.category,
         targetAmount: g.targetAmount,
         color: GOAL_COLORS[g.category] ?? "#2563eb",
+        priority: g.priority,
+        allocationPct: g.allocationPct,
       },
     });
   }

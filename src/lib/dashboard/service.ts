@@ -52,8 +52,32 @@ export async function getDashboardData(
     createdAt: t.createdAt.toISOString(),
   }));
 
+  const remittances = txRaw.filter((t) => t.type === "remittance_received");
+  const totalRemittances = round2(
+    remittances.reduce((s, t) => s + t.amount, 0),
+  );
+  const lifetimeSaved = round2(
+    remittances.reduce((s, t) => s + (t.savedAmount ?? 0), 0),
+  );
+  const avgSavedPerRemittance =
+    remittances.length > 0 ? round2(lifetimeSaved / remittances.length) : 0;
+  const monthAgo = Date.now() - 30 * 86400000;
+  const savedThisMonth = round2(
+    remittances
+      .filter((t) => t.createdAt.getTime() >= monthAgo)
+      .reduce((s, t) => s + (t.savedAmount ?? 0), 0),
+  );
+
   const goals: GoalView[] = goalsRaw.map((g) => {
     const meta = goalMeta(g.category);
+    const remaining = Math.max(0, g.targetAmount - g.currentAmount);
+    // ETA in remittances, based on this goal's share of the average save.
+    const perRemit =
+      g.allocationPct > 0
+        ? avgSavedPerRemittance * (g.allocationPct / 100)
+        : avgSavedPerRemittance / Math.max(1, goalsRaw.filter((x) => !x.isCompleted).length);
+    const etaRemittances =
+      remaining > 0 && perRemit > 0 ? Math.ceil(remaining / perRemit) : null;
     return {
       id: g.id,
       name: g.name,
@@ -64,17 +88,14 @@ export async function getDashboardData(
       color: g.color || meta.color,
       isCompleted: g.isCompleted,
       claimedAt: g.claimedAt ? g.claimedAt.toISOString() : null,
+      priority: (g.priority as GoalView["priority"]) ?? "medium",
+      allocationPct: g.allocationPct,
+      status: (g.status as GoalView["status"]) ?? "active",
+      targetDate: g.targetDate ? g.targetDate.toISOString() : null,
+      etaRemittances,
       createdAt: g.createdAt.toISOString(),
     };
   });
-
-  const remittances = txRaw.filter((t) => t.type === "remittance_received");
-  const totalRemittances = round2(
-    remittances.reduce((s, t) => s + t.amount, 0),
-  );
-  const lifetimeSaved = round2(
-    remittances.reduce((s, t) => s + (t.savedAmount ?? 0), 0),
-  );
 
   const totals = {
     totalRemittances,
@@ -82,6 +103,8 @@ export async function getDashboardData(
     availableBalance: round2(wallet.availableBalance),
     savingsBalance: round2(wallet.savingsBalance),
     lifetimeSaved,
+    avgSavedPerRemittance,
+    savedThisMonth,
   };
 
   // --- On-chain (optional / best-effort) --------------------------------

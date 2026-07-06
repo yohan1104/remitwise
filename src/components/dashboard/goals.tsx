@@ -10,6 +10,12 @@ import {
   Target as TargetIcon,
   Sparkles,
   ArrowUpFromLine,
+  MoreHorizontal,
+  Pencil,
+  Pause,
+  Play,
+  Archive,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -34,14 +40,36 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/lib/utils";
 import { GOAL_CATEGORIES, goalMeta } from "@/lib/constants";
+import { PriorityBadge } from "@/components/onboarding/wizard";
 import { useDashboard } from "./dashboard-context";
-import type { GoalView } from "@/lib/types";
+import type { GoalView, GoalPriority } from "@/lib/types";
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+const PRIORITIES: GoalPriority[] = ["high", "medium", "low"];
 
 export function GoalsSection() {
   const { data } = useDashboard();
-  const goals = data.goals;
+  const [showArchived, setShowArchived] = React.useState(false);
+  // Active first (by priority), then paused, then claimed; archived behind a toggle.
+  const sorted = [...data.goals].sort((a, b) => {
+    const rank = (g: GoalView) =>
+      g.claimedAt ? 3 : g.status === "archived" ? 4 : g.status === "paused" ? 2 : g.isCompleted ? 1 : 0;
+    return (
+      rank(a) - rank(b) ||
+      (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1)
+    );
+  });
+  const archivedCount = sorted.filter((g) => g.status === "archived").length;
+  const goals = showArchived ? sorted : sorted.filter((g) => g.status !== "archived");
 
   return (
     <Card className="gap-5">
@@ -71,13 +99,24 @@ export function GoalsSection() {
             <CreateGoalDialog trigger={<Button size="sm"><Plus className="size-4" /> Create a goal</Button>} />
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AnimatePresence initial={false}>
-              {goals.map((g, i) => (
-                <GoalCard key={g.id} goal={g} index={i} />
-              ))}
-            </AnimatePresence>
-          </div>
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <AnimatePresence initial={false}>
+                {goals.map((g, i) => (
+                  <GoalCard key={g.id} goal={g} index={i} />
+                ))}
+              </AnimatePresence>
+            </div>
+            {archivedCount > 0 && (
+              <button
+                onClick={() => setShowArchived(!showArchived)}
+                className="mt-4 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showArchived ? "Hide" : "Show"} {archivedCount} archived goal
+                {archivedCount === 1 ? "" : "s"}
+              </button>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
@@ -90,6 +129,7 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
   const Icon = meta.icon;
   const pct = Math.round(goal.progress * 100);
   const [busy, setBusy] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
 
   async function remove() {
     setBusy(true);
@@ -102,7 +142,33 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
     }
   }
 
+  async function setStatus(status: "active" | "paused" | "archived") {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/goals/${goal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(
+        status === "paused"
+          ? `Paused "${goal.name}" — it won't receive savings`
+          : status === "archived"
+            ? `Archived "${goal.name}"`
+            : `Resumed "${goal.name}"`,
+      );
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const claimed = Boolean(goal.claimedAt);
+  const paused = goal.status === "paused";
+  const archived = goal.status === "archived";
   return (
     <motion.div
       layout
@@ -110,7 +176,7 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ delay: index * 0.05 }}
-      className={`group relative rounded-2xl border border-border/70 bg-secondary/25 p-4 ${claimed ? "opacity-70" : ""}`}
+      className={`group relative rounded-2xl border border-border/70 bg-secondary/25 p-4 ${claimed || archived ? "opacity-70" : paused ? "opacity-85" : ""}`}
     >
       <div className="flex items-start gap-3">
         <span
@@ -126,11 +192,19 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
               <Badge variant="secondary" className="gap-1">
                 <CheckCircle2 className="size-3" /> Claimed
               </Badge>
+            ) : archived ? (
+              <Badge variant="muted">Archived</Badge>
+            ) : paused ? (
+              <Badge variant="warning" className="gap-1">
+                <Pause className="size-3" /> Paused
+              </Badge>
             ) : goal.isCompleted ? (
               <Badge variant="success" className="gap-1">
                 <CheckCircle2 className="size-3" /> Funded
               </Badge>
-            ) : null}
+            ) : (
+              <PriorityBadge priority={goal.priority} />
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             {claimed
@@ -138,15 +212,45 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
               : `${formatCurrency(goal.currentAmount)} of ${formatCurrency(goal.targetAmount)}`}
           </p>
         </div>
-        <button
-          onClick={remove}
-          disabled={busy}
-          aria-label="Delete goal"
-          className="text-muted-foreground/50 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-        >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label={`Options for ${goal.name}`}
+              className="rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <MoreHorizontal className="size-4" />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {!claimed && !archived && (
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Pencil className="size-4" /> Edit goal
+              </DropdownMenuItem>
+            )}
+            {!claimed && !goal.isCompleted && !archived && (
+              <DropdownMenuItem onClick={() => setStatus(paused ? "active" : "paused")}>
+                {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
+                {paused ? "Resume saving" : "Pause saving"}
+              </DropdownMenuItem>
+            )}
+            {!archived ? (
+              <DropdownMenuItem onClick={() => setStatus("archived")}>
+                <Archive className="size-4" /> Archive
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => setStatus("active")}>
+                <Play className="size-4" /> Restore
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={remove} className="text-destructive focus:text-destructive">
+              <Trash2 className="size-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      <EditGoalDialog goal={goal} open={editOpen} onOpenChange={setEditOpen} />
 
       <div className="mt-4 space-y-1.5">
         <Progress
@@ -163,12 +267,129 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
         </div>
       </div>
 
-      {claimed ? null : goal.isCompleted ? (
+      {!claimed && !archived && !goal.isCompleted && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {goal.allocationPct > 0 && (
+            <span>
+              <span className="font-medium text-foreground">{Math.round(goal.allocationPct)}%</span> of savings
+            </span>
+          )}
+          {!paused && goal.etaRemittances != null && goal.etaRemittances <= 60 && (
+            <span className="flex items-center gap-1">
+              <CalendarClock className="size-3" />≈ {goal.etaRemittances} remittance
+              {goal.etaRemittances === 1 ? "" : "s"} to go
+            </span>
+          )}
+          {goal.targetDate && (
+            <span>by {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
+          )}
+        </div>
+      )}
+
+      {claimed || archived || paused ? null : goal.isCompleted ? (
         <WithdrawGoalControl goal={goal} />
       ) : (
         <ContributeControl goal={goal} />
       )}
     </motion.div>
+  );
+}
+
+function EditGoalDialog({
+  goal, open, onOpenChange,
+}: {
+  goal: GoalView;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const { refresh } = useDashboard();
+  const [name, setName] = React.useState(goal.name);
+  const [target, setTarget] = React.useState(String(goal.targetAmount));
+  const [priority, setPriority] = React.useState<GoalPriority>(goal.priority);
+  const [date, setDate] = React.useState(goal.targetDate ? goal.targetDate.slice(0, 10) : "");
+  const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      setName(goal.name);
+      setTarget(String(goal.targetAmount));
+      setPriority(goal.priority);
+      setDate(goal.targetDate ? goal.targetDate.slice(0, 10) : "");
+    }
+  }, [open, goal]);
+
+  async function save() {
+    if (name.trim().length < 2) return toast.error("Name your goal.");
+    if (!(Number(target) > 0)) return toast.error("Enter a target amount.");
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/goals/${goal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          targetAmount: Number(target),
+          priority,
+          targetDate: date || null,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success("Goal updated");
+      onOpenChange(false);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Edit {goal.name}</DialogTitle>
+          <DialogDescription>Change the name, target, priority or deadline.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor={`edit-name-${goal.id}`}>Goal name</Label>
+            <Input id={`edit-name-${goal.id}`} value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor={`edit-target-${goal.id}`}>Target (USDC)</Label>
+              <Input id={`edit-target-${goal.id}`} type="number" min={1} value={target}
+                onChange={(e) => setTarget(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`edit-date-${goal.id}`}>Target date</Label>
+              <Input id={`edit-date-${goal.id}`} type="date" value={date}
+                onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Priority</Label>
+            <div className="flex rounded-lg bg-secondary p-0.5">
+              {PRIORITIES.map((p) => (
+                <button key={p} onClick={() => setPriority(p)} type="button"
+                  className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    priority === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+          <Button onClick={save} disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />} Save changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -281,6 +502,7 @@ function CreateGoalDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [category, setCategory] = React.useState("emergency");
   const [name, setName] = React.useState("Emergency Fund");
   const [target, setTarget] = React.useState("2000");
+  const [priority, setPriority] = React.useState<GoalPriority>("medium");
 
   function onCategory(value: string) {
     setCategory(value);
@@ -302,6 +524,7 @@ function CreateGoalDialog({ trigger }: { trigger?: React.ReactNode }) {
           category,
           targetAmount: Number(target),
           color: goalMeta(category).color,
+          priority,
         }),
       });
       const json = await res.json();
@@ -376,6 +599,22 @@ function CreateGoalDialog({ trigger }: { trigger?: React.ReactNode }) {
               onChange={(e) => setTarget(e.target.value)}
             />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Priority</Label>
+          <div className="flex rounded-lg bg-secondary p-0.5">
+            {PRIORITIES.map((p) => (
+              <button key={p} onClick={() => setPriority(p)} type="button"
+                className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  priority === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            New goals start at 0% of savings — rebalance in the Savings Plan section below.
+          </p>
         </div>
 
         <DialogFooter>

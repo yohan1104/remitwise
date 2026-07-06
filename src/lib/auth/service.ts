@@ -12,6 +12,7 @@ export interface PublicUser {
   email: string;
   name: string;
   savingsRate: number;
+  onboarded: boolean;
 }
 
 function toPublic(u: {
@@ -19,8 +20,15 @@ function toPublic(u: {
   email: string;
   name: string;
   savingsRate: number;
+  onboarded: boolean;
 }): PublicUser {
-  return { id: u.id, email: u.email, name: u.name, savingsRate: u.savingsRate };
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    savingsRate: u.savingsRate,
+    onboarded: u.onboarded,
+  };
 }
 
 /**
@@ -43,6 +51,8 @@ export async function registerUser(input: {
       name: input.name.trim(),
       passwordHash,
       savingsRate: DEFAULT_SAVINGS_RATE,
+      // New accounts finish the guided onboarding before reaching the dashboard.
+      onboarded: false,
     },
   });
 

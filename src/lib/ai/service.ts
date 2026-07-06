@@ -101,7 +101,40 @@ export function generateMockInsights(data: DashboardData): AiInsight[] {
     });
   }
 
-  // 5) Personalized, actionable advice
+  // 5) Allocation plan check — a High-priority goal starved by its allocation.
+  const starved = goals.find(
+    (g) =>
+      g.status === "active" &&
+      !g.isCompleted &&
+      g.priority === "high" &&
+      g.allocationPct > 0 &&
+      g.allocationPct < 25,
+  );
+  if (starved) {
+    insights.push({
+      id: "allocation-mismatch",
+      kind: "advice",
+      title: `${starved.name} deserves a bigger slice`,
+      body: `${starved.name} is a High-priority goal but only receives ${Math.round(
+        starved.allocationPct,
+      )}% of your savings. Rebalancing your allocation in the Savings Plan section would get you there meaningfully faster.`,
+    });
+  }
+
+  // 6) Consistency streak — habit reinforcement.
+  if (remittanceCount >= 3) {
+    insights.push({
+      id: "streak",
+      kind: "savings",
+      title: `${remittanceCount} remittances saved in a row`,
+      body: `You've auto-saved on every one of your ${remittanceCount} remittances — ${formatCurrency(
+        totals.lifetimeSaved,
+      )} so far. Consistency like this is exactly how safety nets get built.`,
+      emphasis: `${remittanceCount}×`,
+    });
+  }
+
+  // 7) Personalized, actionable advice
   const hasEmergency = goals.some((g) => g.category === "emergency");
   if (!hasEmergency) {
     insights.push({
@@ -136,7 +169,8 @@ export function generateMockInsights(data: DashboardData): AiInsight[] {
     });
   }
 
-  return insights;
+  // Keep the panel focused — the most relevant six.
+  return insights.slice(0, 6);
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +230,9 @@ function buildSummary(data: DashboardData) {
       target: g.targetAmount,
       current: g.currentAmount,
       progressPercent: Math.round(g.progress * 100),
+      priority: g.priority,
+      allocationPct: g.allocationPct,
+      status: g.status,
     })),
     recentSenders: data.transactions
       .filter((t) => t.type === "remittance_received")

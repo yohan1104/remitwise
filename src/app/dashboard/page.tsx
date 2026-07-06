@@ -12,6 +12,8 @@ export const maxDuration = 60;
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  // Finish guided setup before the dashboard (new accounts only).
+  if (!user.onboarded) redirect("/onboarding");
 
   // Safety net: guarantee the user has a wallet before loading the dashboard.
   const wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });

@@ -44,6 +44,9 @@ export interface TransactionView {
   createdAt: string;
 }
 
+export type GoalPriority = "high" | "medium" | "low";
+export type GoalStatus = "active" | "paused" | "archived";
+
 export interface GoalView {
   id: string;
   name: string;
@@ -54,6 +57,12 @@ export interface GoalView {
   color: string;
   isCompleted: boolean;
   claimedAt: string | null;
+  priority: GoalPriority;
+  allocationPct: number;
+  status: GoalStatus;
+  targetDate: string | null;
+  /** Estimated remittances until fully funded (null when unknowable). */
+  etaRemittances: number | null;
   createdAt: string;
 }
 
@@ -93,6 +102,10 @@ export interface DashboardData {
     availableBalance: number;
     savingsBalance: number;
     lifetimeSaved: number;
+    /** Average saved per remittance — powers goal ETAs and projections. */
+    avgSavedPerRemittance: number;
+    /** Saved in the last 30 days. */
+    savedThisMonth: number;
   };
   financialHealth: FinancialHealth;
   goals: GoalView[];

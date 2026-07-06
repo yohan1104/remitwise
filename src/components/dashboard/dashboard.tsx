@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Target,
+  SlidersHorizontal as SlidersIcon,
   Wallet as WalletIcon,
   Receipt,
   Sparkles,
@@ -44,10 +45,13 @@ import { InsightsPanel } from "./insights";
 import { SimulateRemittanceButton } from "./simulate";
 import { SavingsRateDialog } from "./savings-rate";
 import { NotificationsBell } from "./notifications";
+import { AllocationCenter } from "./allocation-center";
+import { SettingsDialog } from "./settings-dialog";
 
 const NAV = [
   { href: "#overview", label: "Overview", icon: LayoutDashboard },
   { href: "#goals", label: "Goals", icon: Target },
+  { href: "#plan", label: "Savings Plan", icon: SlidersIcon },
   { href: "#wallet", label: "Wallet", icon: WalletIcon },
   { href: "#transactions", label: "Transactions", icon: Receipt },
   { href: "#insights", label: "AI Insights", icon: Sparkles },
@@ -162,6 +166,8 @@ function Topbar({ user }: { user: PublicUser }) {
                 <div className="truncate text-xs text-muted-foreground">{user.email}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <SettingsDialog initialName={user.name} />
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="size-4" /> Sign out
               </DropdownMenuItem>
@@ -252,6 +258,10 @@ function Content() {
 
       <Section id="goals">
         <GoalsSection />
+      </Section>
+
+      <Section id="plan">
+        <AllocationCenter />
       </Section>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
