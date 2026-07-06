@@ -3,7 +3,7 @@
 import * as React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion } from "framer-motion";
-import { Copy, Check, Coins, Loader2, ExternalLink, ShieldCheck, FileCode2 } from "lucide-react";
+import { Copy, Check, Coins, Loader2, ExternalLink, ShieldCheck, FileCode2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
@@ -119,6 +119,15 @@ export function WalletCard() {
           </div>
           <ExternalLink className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
         </a>
+
+        {/* Gasless: user holds 0 XLM — reserves + fees sponsored by RemitWise */}
+        <div className="flex items-center gap-2 rounded-xl bg-success/8 px-3.5 py-2 text-xs">
+          <Zap className="size-3.5 shrink-0 text-success" />
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">Gasless</span> — no XLM needed.
+            Account reserves and fees are sponsored by RemitWise.
+          </span>
+        </div>
 
         <div className="flex gap-2">
           {!wallet.provisioned ? (

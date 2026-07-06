@@ -89,6 +89,8 @@ model Goal {
   currentAmount Float   @default(0)
   color         String  @default("#2563eb")
   isCompleted   Boolean @default(false)
+  // Set when the user withdraws a funded goal from the vault to spendable USDC.
+  claimedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

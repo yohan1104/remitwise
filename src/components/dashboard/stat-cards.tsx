@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { formatCurrency, formatPercent, formatPhp } from "@/lib/utils";
 import { useDashboard } from "./dashboard-context";
 
 /** Smoothly animate a number toward its target value. */
@@ -81,7 +81,8 @@ function StatCard({
 
 export function StatCards() {
   const { data } = useDashboard();
-  const { totals, savingsRate } = data;
+  const { totals, savingsRate, fx } = data;
+  const php = (usd: number) => `≈ ${formatPhp(usd, fx.usdPhp)}`;
 
   const cards = [
     {
@@ -90,7 +91,7 @@ export function StatCards() {
       value: totals.totalRemittances,
       render: (v: number) => formatCurrency(v),
       accent: "#2563eb",
-      sub: `${totals.remittanceCount} transfer${totals.remittanceCount === 1 ? "" : "s"} received`,
+      sub: `${php(totals.totalRemittances)} · ${totals.remittanceCount} transfer${totals.remittanceCount === 1 ? "" : "s"}`,
     },
     {
       icon: Wallet,
@@ -98,7 +99,7 @@ export function StatCards() {
       value: totals.availableBalance,
       render: (v: number) => formatCurrency(v),
       accent: "#0891b2",
-      sub: "Ready to spend",
+      sub: `${php(totals.availableBalance)} · Ready to spend`,
     },
     {
       icon: PiggyBank,
@@ -106,7 +107,7 @@ export function StatCards() {
       value: totals.savingsBalance,
       render: (v: number) => formatCurrency(v),
       accent: "#059669",
-      sub: `${formatCurrency(totals.lifetimeSaved)} saved for good`,
+      sub: `${php(totals.savingsBalance)} · In the on-chain vault`,
     },
     {
       icon: Percent,
@@ -119,10 +120,23 @@ export function StatCards() {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((c, i) => (
-        <StatCard key={c.label} index={i} {...c} />
-      ))}
+    <div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((c, i) => (
+          <StatCard key={c.label} index={i} {...c} />
+        ))}
+      </div>
+      <div className="mt-2.5 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
+        <span
+          className={`size-1.5 rounded-full ${fx.oracleLive ? "bg-success" : "bg-muted-foreground/50"}`}
+        />
+        1 USD = ₱{fx.usdPhp.toFixed(2)} ·{" "}
+        {fx.source === "reflector"
+          ? "live via Reflector oracle"
+          : fx.oracleLive
+            ? "Reflector oracle connected · PHP reference rate (testnet feed)"
+            : "reference rate"}
+      </div>
     </div>
   );
 }

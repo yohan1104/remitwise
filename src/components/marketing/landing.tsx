@@ -27,8 +27,8 @@ const features = [
   },
   {
     icon: Wallet,
-    title: "Real Stellar Wallet",
-    desc: "Non-custodial USDC wallet on the Stellar network. Create or import in seconds, share via QR, receive money in real time.",
+    title: "Gasless Stellar Wallet",
+    desc: "A real USDC wallet with zero crypto friction — RemitWise sponsors your account reserves, trustline, and fees. You never need to buy XLM.",
   },
   {
     icon: Target,
@@ -47,8 +47,8 @@ const features = [
   },
   {
     icon: LineChart,
-    title: "Investor-Grade Dashboard",
-    desc: "Beautiful charts for savings over time, spend-vs-save and goal allocation. Know exactly where you stand.",
+    title: "Peso-Aware Dashboard",
+    desc: "Balances in USDC and ₱ — live FX via the Reflector oracle — with charts for savings over time, spend-vs-save and goal allocation.",
   },
 ];
 

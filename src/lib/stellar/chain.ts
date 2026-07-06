@@ -94,6 +94,56 @@ export async function getUsdcBalance(
   }
 }
 
+/**
+ * Gasless onboarding: the treasury sponsors the user's base reserve and USDC
+ * trustline reserve, so the user account is created and can hold USDC with
+ * ZERO XLM. Underbanked users never need to acquire crypto. Idempotent.
+ */
+export async function sponsoredProvision(opts: {
+  horizon: Horizon.Server;
+  passphrase: string;
+  treasurySecret: string;
+  userSecret: string;
+  code: string;
+  issuer: string;
+}): Promise<{ funded: boolean; trustline: boolean; hash?: string }> {
+  const { horizon, passphrase, treasurySecret, userSecret, code, issuer } = opts;
+  const treasury = Keypair.fromSecret(treasurySecret);
+  const user = Keypair.fromSecret(userSecret);
+
+  let exists = false;
+  let hasTrust = false;
+  try {
+    const a = await horizon.loadAccount(user.publicKey());
+    exists = true;
+    hasTrust = a.balances.some(
+      (b) => "asset_code" in b && b.asset_code === code && b.asset_issuer === issuer,
+    );
+  } catch {
+    /* account not yet created */
+  }
+  if (exists && hasTrust) return { funded: true, trustline: true };
+
+  const src = await horizon.loadAccount(treasury.publicKey());
+  const b = new TransactionBuilder(src, {
+    fee: (Number(BASE_FEE) * 8).toString(),
+    networkPassphrase: passphrase,
+  });
+  b.addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: user.publicKey() }));
+  if (!exists) {
+    b.addOperation(Operation.createAccount({ destination: user.publicKey(), startingBalance: "0" }));
+  }
+  if (!hasTrust) {
+    b.addOperation(Operation.changeTrust({ asset: new Asset(code, issuer), source: user.publicKey() }));
+  }
+  b.addOperation(Operation.endSponsoringFutureReserves({ source: user.publicKey() }));
+
+  const tx = b.setTimeout(90).build();
+  tx.sign(treasury, user);
+  const res = await horizon.submitTransaction(tx);
+  return { funded: true, trustline: true, hash: res.hash };
+}
+
 export const addressArg = (publicKey: string) => new Address(publicKey).toScVal();
 export const i128Arg = (stroops: string) => nativeToScVal(stroops, { type: "i128" });
 
@@ -115,6 +165,9 @@ export async function invokeContract(opts: {
   method: string;
   args?: xdr.ScVal[];
   timeoutMs?: number;
+  /** When set, this account pays the transaction fee (fee-bump), so the
+   *  source account can operate with zero XLM — "gasless" for the user. */
+  feeBumpSecret?: string;
 }): Promise<InvokeResult> {
   const { soroban, passphrase, contractId, sourceSecret, method, args = [] } = opts;
   const kp = Keypair.fromSecret(sourceSecret);
@@ -132,7 +185,21 @@ export async function invokeContract(opts: {
   tx = await soroban.prepareTransaction(tx);
   tx.sign(kp);
 
-  const sent = await soroban.sendTransaction(tx);
+  // Optionally wrap in a fee-bump so the treasury pays the network fee.
+  let submitTx: typeof tx | ReturnType<typeof TransactionBuilder.buildFeeBumpTransaction> = tx;
+  if (opts.feeBumpSecret) {
+    const feeSource = Keypair.fromSecret(opts.feeBumpSecret);
+    const fb = TransactionBuilder.buildFeeBumpTransaction(
+      feeSource,
+      (Number(tx.fee) * 2).toString(),
+      tx,
+      passphrase,
+    );
+    fb.sign(feeSource);
+    submitTx = fb;
+  }
+
+  const sent = await soroban.sendTransaction(submitTx);
   if (sent.status === "ERROR") {
     throw new Error(`Soroban send failed: ${JSON.stringify(sent.errorResult)}`);
   }

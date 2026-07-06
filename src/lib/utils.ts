@@ -22,6 +22,15 @@ export function formatCurrency(
   return `${prefix}${formatted}`;
 }
 
+/** Format a USD amount as Philippine pesos at the given rate. */
+export function formatPhp(usd: number, usdPhp: number): string {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: 0,
+  }).format(usd * usdPhp);
+}
+
 export function formatPercent(value: number, fractionDigits = 0): string {
   return `${(value * 100).toFixed(fractionDigits)}%`;
 }

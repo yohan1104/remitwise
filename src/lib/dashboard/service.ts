@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getOnChainWalletState } from "@/lib/stellar/service";
 import { explorer, vaultInfo } from "@/lib/stellar/soroban";
+import { getFxInfo } from "@/lib/stellar/oracle";
 import { goalMeta } from "@/lib/constants";
 import { clamp } from "@/lib/utils";
 import type {
@@ -62,6 +63,7 @@ export async function getDashboardData(
       progress: g.targetAmount > 0 ? clamp(g.currentAmount / g.targetAmount) : 0,
       color: g.color || meta.color,
       isCompleted: g.isCompleted,
+      claimedAt: g.claimedAt ? g.claimedAt.toISOString() : null,
       createdAt: g.createdAt.toISOString(),
     };
   });
@@ -95,6 +97,15 @@ export async function getDashboardData(
   const info = vaultInfo();
   const links = explorer();
 
+  // Live FX via Reflector (cached 5 min; degrades to a labelled reference rate).
+  const fx = await getFxInfo().catch(() => ({
+    usdPhp: 58.75,
+    source: "reference" as const,
+    oracleLive: false,
+    oracleContractId: "",
+    updatedAt: new Date().toISOString(),
+  }));
+
   return {
     wallet: {
       publicKey: wallet.publicKey,
@@ -111,6 +122,12 @@ export async function getDashboardData(
       explorerContractUrl: links.contract(info.vaultContractId),
       explorerAccountUrl: links.account(wallet.publicKey),
     },
+    fx: {
+      usdPhp: fx.usdPhp,
+      source: fx.source,
+      oracleLive: fx.oracleLive,
+      oracleContractId: fx.oracleContractId,
+    },
     savingsRate: user.savingsRate,
     totals,
     financialHealth: computeFinancialHealth({
@@ -125,7 +142,7 @@ export async function getDashboardData(
       savingsOverTime: buildSavingsOverTime(txRaw),
       spendVsSave: buildSpendVsSave(remittances),
       goalAllocation: goals
-        .filter((g) => g.currentAmount > 0)
+        .filter((g) => g.currentAmount > 0 && !g.claimedAt)
         .map((g) => ({ name: g.name, value: round2(g.currentAmount), color: g.color })),
     },
   };

@@ -43,6 +43,7 @@ import { WalletCard } from "./wallet-card";
 import { InsightsPanel } from "./insights";
 import { SimulateRemittanceButton } from "./simulate";
 import { SavingsRateDialog } from "./savings-rate";
+import { NotificationsBell } from "./notifications";
 
 const NAV = [
   { href: "#overview", label: "Overview", icon: LayoutDashboard },
@@ -145,6 +146,7 @@ function Topbar({ user }: { user: PublicUser }) {
           </Button>
           <SavingsRateDialog />
           <SimulateRemittanceButton className="hidden sm:inline-flex" />
+          <NotificationsBell />
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -221,8 +223,8 @@ function ProvisionBanner() {
     <div className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm">
       <RefreshCw className="size-4 animate-spin text-primary" />
       <span>
-        Activating your wallet on Stellar — funding via Friendbot and establishing the USDC
-        trustline. This takes a few seconds…
+        Activating your wallet on Stellar — RemitWise is sponsoring your account reserves and
+        USDC trustline, so you need no XLM. This takes a few seconds…
       </span>
     </div>
   );

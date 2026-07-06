@@ -9,6 +9,7 @@ import {
   setUserRate,
   explorer,
 } from "@/lib/stellar/soroban";
+import { allocateSavings, round2, round7 } from "./allocation";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -42,8 +43,6 @@ export interface RemittanceResult {
   goalsUpdated: { id: string; name: string; added: number; completed: boolean }[];
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-const round7 = (n: number) => Math.round(n * 1e7) / 1e7;
 
 export class WalletNotProvisionedError extends Error {}
 
@@ -107,31 +106,15 @@ async function earmarkSavingsToGoals(tx: Prisma.TransactionClient, userId: strin
     where: { userId, isCompleted: false },
     orderBy: { createdAt: "asc" },
   });
-  const active = goals.filter((g) => g.currentAmount < g.targetAmount);
-  if (active.length === 0 || amount <= 0) return [];
-
-  const totalRemaining = active.reduce((s, g) => s + (g.targetAmount - g.currentAmount), 0);
-  let pool = amount;
-  const updated: { id: string; name: string; added: number; completed: boolean }[] = [];
-
-  for (let i = 0; i < active.length; i++) {
-    const goal = active[i];
-    const remaining = goal.targetAmount - goal.currentAmount;
-    const share =
-      i === active.length - 1
-        ? Math.min(pool, remaining)
-        : Math.min(round2((remaining / totalRemaining) * amount), remaining, pool);
-    if (share <= 0) continue;
-    const newCurrent = round2(goal.currentAmount + share);
-    const completed = newCurrent >= goal.targetAmount;
-    pool = round2(pool - share);
+  // Pure, unit-tested allocation math (see lib/savings/allocation.ts).
+  const allocations = allocateSavings(goals, amount);
+  for (const a of allocations) {
     await tx.goal.update({
-      where: { id: goal.id },
-      data: { currentAmount: newCurrent, isCompleted: completed },
+      where: { id: a.id },
+      data: { currentAmount: a.newCurrent, isCompleted: a.completed },
     });
-    updated.push({ id: goal.id, name: goal.name, added: share, completed });
   }
-  return updated;
+  return allocations.map(({ id, name, added, completed }) => ({ id, name, added, completed }));
 }
 
 /** Manually move spendable USDC into savings (on-chain) and earmark to a goal. */
@@ -179,6 +162,53 @@ export async function contributeToGoal(input: { userId: string; goalId: string; 
   });
 
   return { applied, goalId: goal.id, stellarTxId: hash, explorerUrl: explorer().tx(hash) };
+}
+
+/**
+ * Claim a funded goal: withdraw its balance from the vault to the user's
+ * spendable USDC (on-chain, gasless), and mark the goal claimed.
+ */
+export async function withdrawGoal(input: { userId: string; goalId: string }) {
+  const wallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: input.userId } });
+  const goal = await prisma.goal.findFirstOrThrow({
+    where: { id: input.goalId, userId: input.userId },
+  });
+  if (goal.claimedAt) throw new Error("This goal has already been claimed.");
+  const amount = round7(goal.currentAmount);
+  if (!(amount > 0)) throw new Error("Nothing to withdraw from this goal yet.");
+  if (wallet.savingsBalance < amount - 1e-6) {
+    throw new Error("Insufficient vault balance.");
+  }
+
+  // On-chain: move USDC from the vault back to the user's account.
+  const secret = await getWalletSecret(input.userId);
+  const { hash } = await withdrawSavings(secret, wallet.publicKey, amount);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.wallet.update({
+      where: { userId: input.userId },
+      data: {
+        availableBalance: round7(wallet.availableBalance + amount),
+        savingsBalance: round7(Math.max(0, wallet.savingsBalance - amount)),
+      },
+    });
+    await tx.goal.update({
+      where: { id: goal.id },
+      data: { claimedAt: new Date() },
+    });
+    await tx.transaction.create({
+      data: {
+        userId: input.userId,
+        type: TRANSACTION_TYPES.withdrawal,
+        amount,
+        asset: "USDC",
+        memo: `Withdrew ${goal.name}`,
+        stellarTxId: hash,
+      },
+    });
+  });
+
+  return { amount, goalId: goal.id, stellarTxId: hash, explorerUrl: explorer().tx(hash) };
 }
 
 /** Withdraw savings from the vault back to the user's spendable balance. */

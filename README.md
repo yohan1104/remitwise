@@ -16,6 +16,23 @@ _Stellar Hackathon MVP — real on-chain settlement, demo-ready end-to-end._
 
 ---
 
+## 🧑‍⚖️ For judges — the 30-second tour
+
+1. **Log in** with `demo@remitwise.app` / `demo1234` (or register — your wallet is
+   created **gaslessly**: sponsored reserves + USDC trustline, 0 XLM).
+2. Click **Simulate Remittance → $500 → Receive.** A real Soroban transaction
+   settles on testnet; the vault contract retains 20% and releases 80% atomically.
+3. Click **"view on Stellar"** on the success screen — the tx opens on
+   stellar.expert. Every transaction in the history has a verifiable hash.
+4. Fund a goal to 100% → **Withdraw to wallet** (an on-chain vault withdrawal).
+5. In AI Insights, tap **"Raise rate to 25%"** — a fee-bumped, user-signed
+   `set_rate` contract call.
+
+**Verify independently:** the [savings-vault contract](contracts/savings-vault/src/lib.rs)
+is deployed on testnet (ID in the wallet card, linked to the explorer), and the
+demo account's dashboard balance equals its real on-chain USDC balance.
+Run the math/crypto test suite with `npm test`; contract tests with `npm run contract:test`.
+
 ## ✨ What makes it different
 
 Most remittance apps just move money. RemitWise makes every transfer build wealth,
@@ -57,6 +74,31 @@ stellar.expert**. The saved USDC is held by the contract, not a database row.
 
 Contract methods: `deposit_remittance`, `deposit_savings`, `withdraw`,
 `set_rate`, `savings_of`, `rate_of`, `total_savings`.
+
+### Stellar primitives used (and why each matters)
+
+| Primitive | How RemitWise uses it |
+|-----------|-----------------------|
+| **Soroban smart contract** | The savings-vault enforces the auto-save split on-chain — the core guarantee. |
+| **Stellar Asset Contract (SAC)** | USDC is moved by the contract via the SAC token interface. |
+| **Payments + trustlines** | Real USDC settlement into each user's account. |
+| **Sponsored reserves** | ⭐ The treasury sponsors each user's base reserve **and** USDC trustline, so a recipient can hold USDC with **0 XLM**. |
+| **Fee-bump transactions** | ⭐ The treasury pays the network fee for user-signed contract calls, so users never need XLM to save, withdraw, or change their rate. |
+| **Reflector oracle (composability)** | ⭐ Live on-chain FX reads from [Reflector](https://reflector.network)'s fiat feed power the peso (₱) values on the dashboard — what a Filipino recipient actually thinks in. Mainnet feed serves PHP directly; on testnet we verify the oracle live (EUR probe) and label the PHP reference rate. |
+| **Soroban RPC (correct tx handling)** | Every invoke is simulated (`prepareTransaction`), signed, sent, then **polled to finality** — `sendTransaction` is never treated as success. |
+
+**Gasless by design.** Sponsored reserves + fee-bump mean a Filipino remittance
+recipient needs **no crypto whatsoever** — no XLM to buy, no gas to manage. This
+is what makes on-chain savings realistic for the underbanked, not just the
+crypto-native.
+
+### What's novel
+
+Savings apps and remittance apps both exist — but they rely on *soft* rules a
+backend can ignore. RemitWise makes the savings rule a **deployed Soroban
+contract** (trustless, verifiable) *and* makes the on-chain experience **gasless**
+for the recipient. Contract-enforced savings + sponsored/fee-bumped UX for the
+underbanked is the combination we haven't found elsewhere in the ecosystem.
 
 ---
 
@@ -181,8 +223,9 @@ prisma/  schema.prisma · seed.ts (on-chain demo seeder)
 | Command | Description |
 |---------|-------------|
 | `npm run dev` / `build` / `start` | Next.js app |
+| `npm test` | Unit tests (allocation math, encryption round-trips) |
 | `npm run contract:build` | Compile the Soroban contract to wasm |
-| `npm run contract:test` | Run the contract's Rust unit tests |
+| `npm run contract:test` | Run the contract's Rust unit tests (5) |
 | `npm run stellar:bootstrap` | Deploy vault + USDC asset, write config (`--force` to redeploy) |
 | `npm run db:push` / `db:seed` / `db:reset` | Database |
 

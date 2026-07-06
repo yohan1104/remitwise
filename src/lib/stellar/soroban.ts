@@ -3,10 +3,8 @@ import { getStellarConfig } from "./config";
 import {
   makeHorizon,
   makeSoroban,
-  fundFriendbot,
-  submitClassic,
-  changeTrustOp,
   getUsdcBalance,
+  sponsoredProvision,
   invokeContract,
   simulateRead,
   addressArg,
@@ -44,22 +42,25 @@ export async function getWalletState(publicKey: string): Promise<WalletState> {
   };
 }
 
-/** Fund a new wallet via Friendbot and establish its USDC trustline. */
+/**
+ * Gasless onboarding: the treasury sponsors the user's account reserve and USDC
+ * trustline, so the user holds ZERO XLM and never needs to acquire crypto.
+ */
 export async function provisionWallet(secret: string): Promise<{ funded: boolean; trustline: boolean }> {
   const { cfg, horizon, pass } = ctx();
-  const { Keypair } = await import("@stellar/stellar-sdk");
-  const publicKey = Keypair.fromSecret(secret).publicKey();
-
-  const state = await getWalletState(publicKey);
-  const funded = state.funded || (await fundFriendbot(publicKey));
-  if (!funded) return { funded: false, trustline: false };
-
-  if (state.hasTrustline) return { funded: true, trustline: true };
   try {
-    await submitClassic(horizon, pass, secret, changeTrustOp(cfg.usdc.code, cfg.usdc.issuer));
-    return { funded: true, trustline: true };
-  } catch {
-    return { funded: true, trustline: false };
+    const r = await sponsoredProvision({
+      horizon,
+      passphrase: pass,
+      treasurySecret: cfg.distributor.secret,
+      userSecret: secret,
+      code: cfg.usdc.code,
+      issuer: cfg.usdc.issuer,
+    });
+    return { funded: r.funded, trustline: r.trustline };
+  } catch (err) {
+    console.error("sponsored provisioning failed", err);
+    return { funded: false, trustline: false };
   }
 }
 
@@ -103,6 +104,7 @@ export async function depositSavings(
     passphrase: pass,
     contractId: cfg.vaultContractId,
     sourceSecret: userSecret,
+    feeBumpSecret: cfg.distributor.secret,
     method: "deposit_savings",
     args: [addressArg(userPublicKey), addressArg(userPublicKey), i128Arg(usdcToStroops(amountUsdc))],
   });
@@ -121,6 +123,7 @@ export async function withdrawSavings(
     passphrase: pass,
     contractId: cfg.vaultContractId,
     sourceSecret: userSecret,
+    feeBumpSecret: cfg.distributor.secret,
     method: "withdraw",
     args: [addressArg(userPublicKey), i128Arg(usdcToStroops(amountUsdc))],
   });
@@ -137,6 +140,7 @@ export async function setUserRate(userSecret: string, rateBps: number): Promise<
     passphrase: pass,
     contractId: cfg.vaultContractId,
     sourceSecret: userSecret,
+    feeBumpSecret: cfg.distributor.secret,
     method: "set_rate",
     args: [addressArg(publicKey), nativeToScVal(rateBps, { type: "u32" })],
   });

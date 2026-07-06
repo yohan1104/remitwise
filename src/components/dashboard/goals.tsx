@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Target as TargetIcon,
   Sparkles,
+  ArrowUpFromLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -101,6 +102,7 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
     }
   }
 
+  const claimed = Boolean(goal.claimedAt);
   return (
     <motion.div
       layout
@@ -108,7 +110,7 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ delay: index * 0.05 }}
-      className="group relative rounded-2xl border border-border/70 bg-secondary/25 p-4"
+      className={`group relative rounded-2xl border border-border/70 bg-secondary/25 p-4 ${claimed ? "opacity-70" : ""}`}
     >
       <div className="flex items-start gap-3">
         <span
@@ -120,14 +122,20 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h4 className="truncate font-semibold">{goal.name}</h4>
-            {goal.isCompleted && (
+            {claimed ? (
+              <Badge variant="secondary" className="gap-1">
+                <CheckCircle2 className="size-3" /> Claimed
+              </Badge>
+            ) : goal.isCompleted ? (
               <Badge variant="success" className="gap-1">
                 <CheckCircle2 className="size-3" /> Funded
               </Badge>
-            )}
+            ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}
+            {claimed
+              ? `${formatCurrency(goal.currentAmount)} withdrawn to spendable`
+              : `${formatCurrency(goal.currentAmount)} of ${formatCurrency(goal.targetAmount)}`}
           </p>
         </div>
         <button
@@ -155,8 +163,45 @@ function GoalCard({ goal, index }: { goal: GoalView; index: number }) {
         </div>
       </div>
 
-      {!goal.isCompleted && <ContributeControl goal={goal} />}
+      {claimed ? null : goal.isCompleted ? (
+        <WithdrawGoalControl goal={goal} />
+      ) : (
+        <ContributeControl goal={goal} />
+      )}
     </motion.div>
+  );
+}
+
+function WithdrawGoalControl({ goal }: { goal: GoalView }) {
+  const { refresh } = useDashboard();
+  const [busy, setBusy] = React.useState(false);
+
+  async function withdraw() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/goals/${goal.id}/withdraw`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      toast.success(`${formatCurrency(json.result.amount)} withdrawn to your spendable balance`);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Withdrawal failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Button
+      variant="success"
+      size="sm"
+      className="mt-3 w-full text-xs"
+      onClick={withdraw}
+      disabled={busy}
+    >
+      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUpFromLine className="size-3.5" />}
+      Withdraw {formatCurrency(goal.currentAmount)} to wallet
+    </Button>
   );
 }
 

@@ -14,6 +14,14 @@ export interface WalletView {
   };
 }
 
+export interface FxView {
+  /** PHP per 1 USD. */
+  usdPhp: number;
+  source: "reflector" | "reference";
+  oracleLive: boolean;
+  oracleContractId: string;
+}
+
 export interface ChainInfo {
   network: string;
   vaultContractId: string;
@@ -45,6 +53,7 @@ export interface GoalView {
   progress: number; // 0..1
   color: string;
   isCompleted: boolean;
+  claimedAt: string | null;
   createdAt: string;
 }
 
@@ -76,6 +85,7 @@ export interface GoalAllocationSlice {
 export interface DashboardData {
   wallet: WalletView;
   chain: ChainInfo;
+  fx: FxView;
   savingsRate: number;
   totals: {
     totalRemittances: number;

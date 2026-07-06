@@ -18,9 +18,7 @@ import { deriveKey, encryptWithKey } from "../src/lib/crypto-core";
 import {
   makeHorizon,
   makeSoroban,
-  fundFriendbot,
-  submitClassic,
-  changeTrustOp,
+  sponsoredProvision,
   invokeContract,
   addressArg,
   i128Arg,
@@ -28,6 +26,7 @@ import {
   stroopsToUsdc,
   getUsdcBalance,
 } from "../src/lib/stellar/chain";
+import { allocateSavings } from "../src/lib/savings/allocation";
 
 const prisma = new PrismaClient();
 const DEMO_EMAIL = "demo@remitwise.app";
@@ -65,7 +64,6 @@ const REMITTANCES = [
   { amount: 500, sender: "Global Freelance Co.", memo: "Project milestone", daysAgo: 8 },
   { amount: 380, sender: "Ahmed Al-Rashid", memo: "Contract payment", daysAgo: 2 },
 ];
-const round2 = (n: number) => Math.round(n * 100) / 100;
 const round7 = (n: number) => Math.round(n * 1e7) / 1e7;
 
 async function main() {
@@ -87,11 +85,17 @@ async function main() {
     },
   });
 
-  console.log("   provisioning wallet on Stellar (Friendbot + USDC trustline)…");
-  await fundFriendbot(kp.publicKey());
-  await submitClassic(horizon, PASS, kp.secret(), changeTrustOp(cfg.usdc.code, cfg.usdc.issuer));
+  console.log("   gasless provisioning (treasury-sponsored account + USDC trustline, 0 XLM)…");
+  await sponsoredProvision({
+    horizon,
+    passphrase: PASS,
+    treasurySecret: cfg.distributor.secret,
+    userSecret: kp.secret(),
+    code: cfg.usdc.code,
+    issuer: cfg.usdc.issuer,
+  });
   await prisma.wallet.update({ where: { userId: user.id }, data: { provisioned: true } });
-  console.log(`   wallet: ${kp.publicKey()}`);
+  console.log(`   wallet: ${kp.publicKey()} (0 XLM — sponsored)`);
 
   for (const g of GOALS) {
     await prisma.goal.create({
@@ -154,25 +158,16 @@ async function main() {
   console.log("   Login:  demo@remitwise.app / demo1234");
 }
 
+/** Uses the same unit-tested allocation math as the app engine. */
 async function earmarkToGoals(userId: string, amount: number) {
-  const goals = await prisma.goal.findMany({ where: { userId, isCompleted: false }, orderBy: { createdAt: "asc" } });
-  const active = goals.filter((g) => g.currentAmount < g.targetAmount);
-  if (active.length === 0 || amount <= 0) return;
-  const totalRemaining = active.reduce((s, g) => s + (g.targetAmount - g.currentAmount), 0);
-  let pool = amount;
-  for (let i = 0; i < active.length; i++) {
-    const goal = active[i];
-    const remaining = goal.targetAmount - goal.currentAmount;
-    const share =
-      i === active.length - 1
-        ? Math.min(pool, remaining)
-        : Math.min(round2((remaining / totalRemaining) * amount), remaining, pool);
-    if (share <= 0) continue;
-    const newCurrent = round2(goal.currentAmount + share);
-    pool = round2(pool - share);
+  const goals = await prisma.goal.findMany({
+    where: { userId, isCompleted: false },
+    orderBy: { createdAt: "asc" },
+  });
+  for (const a of allocateSavings(goals, amount)) {
     await prisma.goal.update({
-      where: { id: goal.id },
-      data: { currentAmount: newCurrent, isCompleted: newCurrent >= goal.targetAmount },
+      where: { id: a.id },
+      data: { currentAmount: a.newCurrent, isCompleted: a.completed },
     });
   }
 }
