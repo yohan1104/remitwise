@@ -100,7 +100,7 @@ export function GoalsSection() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <AnimatePresence initial={false}>
                 {goals.map((g, i) => (
                   <GoalCard key={g.id} goal={g} index={i} />
@@ -356,7 +356,7 @@ function EditGoalDialog({
             <Label htmlFor={`edit-name-${goal.id}`}>Goal name</Label>
             <Input id={`edit-name-${goal.id}`} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor={`edit-target-${goal.id}`}>Target (USDC)</Label>
               <Input id={`edit-target-${goal.id}`} type="number" min={1} value={target}
@@ -584,7 +584,7 @@ function CreateGoalDialog({ trigger }: { trigger?: React.ReactNode }) {
           })}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="goal-name">Goal name</Label>
             <Input id="goal-name" value={name} onChange={(e) => setName(e.target.value)} />

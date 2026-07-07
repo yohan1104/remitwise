@@ -80,8 +80,8 @@ export function Landing() {
 
       {/* Nav */}
       <header className="sticky top-0 z-40">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Logo />
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-5">
+          <Logo textClassName="hidden min-[380px]:inline" />
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">Features</a>
             <a href="#how" className="transition-colors hover:text-foreground">How it works</a>
@@ -197,7 +197,7 @@ export function Landing() {
           title="A remittance app that actually builds wealth"
           sub="Most apps just move money. RemitWise makes every transfer work harder for you."
         />
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
             <motion.div
               key={f.title}
@@ -225,7 +225,7 @@ export function Landing() {
           title="From payment to progress in seconds"
           sub="Four steps that happen automatically, every single time."
         />
-        <div className="mt-14 grid gap-5 md:grid-cols-4">
+        <div className="mt-14 grid gap-5 grid-cols-1 md:grid-cols-4">
           {steps.map((s, i) => (
             <motion.div
               key={s.n}

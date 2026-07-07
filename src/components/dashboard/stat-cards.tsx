@@ -121,7 +121,7 @@ export function StatCards() {
 
   return (
     <div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((c, i) => (
           <StatCard key={c.label} index={i} {...c} />
         ))}

@@ -492,7 +492,7 @@ function GoalsStep({
                     <Trash2 className="size-4" />
                   </button>
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Target amount (USDC)</Label>
                     <Input type="number" min={1} value={g.targetAmount || ""}
@@ -565,7 +565,7 @@ function PlanStep({
         Set each goal&apos;s priority and its share of every saved amount. Shares must total 100%.
       </p>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-[1fr_220px]">
+      <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-[1fr_220px]">
         <div className="space-y-3">
           {goals.map((g) => {
             const meta = goalMeta(g.category);

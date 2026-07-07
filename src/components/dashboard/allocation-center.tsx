@@ -91,7 +91,7 @@ export function AllocationCenter() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-6 md:grid-cols-[1fr_210px]">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-[1fr_210px]">
           <div className="space-y-3">
             {planable.map((g) => {
               const meta = goalMeta(g.category);

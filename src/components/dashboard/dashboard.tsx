@@ -244,14 +244,14 @@ function Content() {
         <StatCards />
       </Section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <SavingsOverTimeChart />
         </div>
         <FinancialHealthCard />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <SpendVsSaveChart />
         <GoalAllocationChart />
       </div>
@@ -264,7 +264,7 @@ function Content() {
         <AllocationCenter />
       </Section>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_380px]">
         <div id="transactions" className="scroll-mt-24">
           <TransactionsList />
         </div>
