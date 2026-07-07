@@ -275,7 +275,7 @@ export function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-10 text-sm text-muted-foreground sm:flex-row">
           <Logo size={28} />
           <p>Send More. Save Smarter. Live Better.</p>
-          <p>© {new Date().getFullYear()} RemitWise · Stellar Hackathon MVP</p>
+          <p>© {new Date().getFullYear()} RemitWise</p>
         </div>
       </footer>
     </div>
