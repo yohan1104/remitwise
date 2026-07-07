@@ -24,12 +24,10 @@ export const metadata: Metadata = {
     title: "RemitWise",
     description: "Send More. Save Smarter. Live Better.",
     type: "website",
-    images: [{ url: "/logo.png", width: 1260, height: 1260, alt: "RemitWise" }],
+    images: [{ url: "/logo.png", width: 1254, height: 1254, alt: "RemitWise" }],
   },
-  icons: {
-    icon: [{ url: "/logo.png", type: "image/png" }],
-    apple: "/logo.png",
-  },
+  // Favicon + Apple touch icon are provided by src/app/{favicon.ico,icon.png,apple-icon.png}
+  // (Next.js file conventions) — generated from the RemitWise logo mark.
 };
 
 export const viewport: Viewport = {
