@@ -4,7 +4,8 @@ import { deriveKey, encryptWithKey, decryptWithKey } from "../src/lib/crypto-cor
 
 test("wallet secret encryption round-trips", () => {
   const key = deriveKey("test-secret-key-material");
-  const secret = "SC5KRAMZBPJ6HEWUUZJBCOPW67VB6XXFYW7IFOEPXGRF7IAJ4YJCFMQJ";
+  // Throwaway random keypair secret — fixture only, controls no real account.
+  const secret = "SCTDT5XWRL575FEW2ZQJRTX26K7ODC75YEMJLKOLL7PEAJHU53TZBZVD";
   const enc = encryptWithKey(key, secret);
   assert.ok(enc.startsWith("v1:"));
   assert.notEqual(enc, secret);
