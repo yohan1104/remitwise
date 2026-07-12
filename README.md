@@ -10,7 +10,7 @@ RemitWise turns every incoming USDC payment into automatic savings, real
 progress on your goals, and AI-powered guidance. The savings rule isn't a
 backend promise — it's a **deployed Soroban smart contract** on Stellar.
 
-_Stellar Hackathon MVP — real on-chain settlement, demo-ready end-to-end._
+_Stellar MVP — real on-chain settlement, demo-ready end-to-end._
 
 </div>
 
