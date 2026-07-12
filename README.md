@@ -231,6 +231,8 @@ prisma/  schema.prisma · seed.ts (on-chain demo seeder)
 
 ---
 
+A Live Video Demo : https://youtu.be/8CQ6Ikw9z8s
+
 <div align="center">
 Built for the Stellar Hackathon · <strong>Send More. Save Smarter. Live Better.</strong>
 </div>
