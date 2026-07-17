@@ -5,6 +5,7 @@
 import {
   Keypair,
   Asset,
+  Memo,
   Operation,
   TransactionBuilder,
   BASE_FEE,
@@ -142,6 +143,53 @@ export async function sponsoredProvision(opts: {
   tx.sign(treasury, user);
   const res = await horizon.submitTransaction(tx);
   return { funded: true, trustline: true, hash: res.hash };
+}
+
+/**
+ * Submit a classic payment from a zero-XLM user account: the user signs the
+ * payment, the treasury wraps it in a fee-bump and pays the network fee.
+ * Used for off-ramp settlement (user's USDC → anchor's Stellar account).
+ */
+export async function submitPaymentFeeBump(opts: {
+  horizon: Horizon.Server;
+  passphrase: string;
+  sourceSecret: string;
+  feeSourceSecret: string;
+  destination: string;
+  code: string;
+  issuer: string;
+  /** Decimal USDC amount as a string with ≤7 dp, e.g. "25.5000000". */
+  amount: string;
+  memoText?: string;
+}): Promise<{ hash: string }> {
+  const { horizon, passphrase } = opts;
+  const source = Keypair.fromSecret(opts.sourceSecret);
+  const feeSource = Keypair.fromSecret(opts.feeSourceSecret);
+
+  const account = await horizon.loadAccount(source.publicKey());
+  const builder = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: passphrase,
+  }).addOperation(
+    Operation.payment({
+      destination: opts.destination,
+      asset: new Asset(opts.code, opts.issuer),
+      amount: opts.amount,
+    }),
+  );
+  if (opts.memoText) builder.addMemo(Memo.text(opts.memoText.slice(0, 28)));
+  const inner = builder.setTimeout(90).build();
+  inner.sign(source);
+
+  const feeBump = TransactionBuilder.buildFeeBumpTransaction(
+    feeSource,
+    (Number(BASE_FEE) * 10).toString(),
+    inner,
+    passphrase,
+  );
+  feeBump.sign(feeSource);
+  const res = await horizon.submitTransaction(feeBump);
+  return { hash: res.hash };
 }
 
 export const addressArg = (publicKey: string) => new Address(publicKey).toScVal();

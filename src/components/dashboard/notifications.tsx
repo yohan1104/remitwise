@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bell, ArrowDownLeft, Target, ArrowUpFromLine, PiggyBank } from "lucide-react";
+import { Bell, ArrowDownLeft, Target, ArrowUpFromLine, PiggyBank, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -68,6 +68,20 @@ function toNotification(t: TransactionView): Notification | null {
         color: "#7c3aed",
         title: `Savings updated — ${formatCurrency(t.amount)}`,
         body: t.memo ?? "",
+        at: t.createdAt,
+      };
+    case "cash_out":
+      return {
+        id: t.id,
+        icon: Landmark,
+        color: "#d97706",
+        title:
+          t.status === "pending"
+            ? `Cash-out in progress — ${formatCurrency(t.amount)}`
+            : t.status === "failed"
+              ? `Cash-out failed — ${formatCurrency(t.amount)}`
+              : `Cash-out delivered — ${formatCurrency(t.amount)}`,
+        body: t.memo ?? "USDC → PHP via anchor payout",
         at: t.createdAt,
       };
     default:

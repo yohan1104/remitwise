@@ -16,7 +16,13 @@ export type AuditAction =
   | "goal.withdraw"
   | "savings.withdraw"
   | "savings.rate_changed"
-  | "wallet.provisioned";
+  | "wallet.provisioned"
+  | "withdrawal.created"
+  | "withdrawal.completed"
+  | "withdrawal.failed"
+  | "deposit.intent_created"
+  | "deposit.completed"
+  | "deposit.failed";
 
 export async function audit(entry: {
   action: AuditAction;

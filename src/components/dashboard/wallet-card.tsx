@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { truncateKey, formatCurrency } from "@/lib/utils";
 import { useDashboard } from "./dashboard-context";
+import { WithdrawDialog } from "./withdraw-dialog";
 
 export function WalletCard() {
   const { data, refresh } = useDashboard();
@@ -129,18 +130,21 @@ export function WalletCard() {
           </span>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           {!wallet.provisioned ? (
             <Button className="flex-1" onClick={activate} disabled={provisioning}>
               {provisioning ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
               Activate wallet
             </Button>
           ) : (
-            <Button asChild variant="outline" className="flex-1">
-              <a href={chain.explorerAccountUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-4" /> View account on explorer
-              </a>
-            </Button>
+            <>
+              <WithdrawDialog className="w-full" />
+              <Button asChild variant="outline" className="w-full">
+                <a href={chain.explorerAccountUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="size-4" /> View account on explorer
+                </a>
+              </Button>
+            </>
           )}
         </div>
       </CardContent>

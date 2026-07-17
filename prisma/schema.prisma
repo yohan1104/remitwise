@@ -31,6 +31,8 @@ model User {
   wallet       Wallet?
   transactions Transaction[]
   goals        Goal[]
+  withdrawals  Withdrawal[]
+  deposits     DepositIntent[]
 
   @@index([email])
 }
@@ -111,6 +113,83 @@ model Goal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// A fiat cash-out: USDC leaves the user's wallet on-chain to the anchor's
+// settlement account, and the anchor pays out local fiat (PHP, Phase 2) to the
+// selected bank / e-wallet. The quote (FX, fees, payout) is snapshotted at
+// confirmation time so history is auditable even after rates move.
+model Withdrawal {
+  id     String @id @default(cuid())
+  userId String
+
+  // Money — quote snapshot (all figures fixed at confirmation):
+  amountUsdc Float // debited from the user's spendable USDC
+  feeUsdc    Float // total fees in USDC (service + network)
+  fxRate     Float // PHP per 1 USD applied
+  payoutPhp  Float // what the bank account receives
+  fxSource   String @default("reference") // "reflector" | "reference"
+
+  // Payout destination (Philippines scope for Phase 2):
+  railCode      String // e.g. "ph_bdo", "ph_gcash" — see lib/anchors/rails.ts
+  railName      String // display name snapshot ("BDO Unibank")
+  accountName   String
+  accountNumber String
+
+  // Lifecycle: pending_anchor → converting → paying_out → completed | failed
+  status        String    @default("pending_anchor")
+  anchorRef     String? // anchor's SEP-24 transaction id
+  stellarTxId   String? // on-chain USDC transfer to the anchor
+  failureReason String?
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// A fiat on-ramp session: a sender abroad pays local fiat (USD, EUR, …) via
+// the anchor's interactive flow; the anchor converts to USDC and it settles
+// into the recipient's wallet through the standard remittance ingest path.
+model DepositIntent {
+  id     String @id @default(cuid())
+  userId String // the RemitWise recipient
+
+  // Quote snapshot at creation:
+  amountFiat   Float
+  fiatCurrency String // ISO code the sender pays in (USD, EUR, GBP, …)
+  feeFiat      Float // anchor fee, in sender currency
+  fxRate       Float // USD per 1 unit of sender currency
+  amountUsdc   Float // USDC the recipient will receive
+
+  senderName String?
+
+  // Lifecycle: awaiting_payment → processing → completed | expired | failed
+  status         String  @default("awaiting_payment")
+  anchorRef      String?
+  interactiveUrl String? // anchor-hosted page where the sender pays
+  stellarTxId    String? // settlement tx once minted on-chain
+  transactionId  String? // resulting remittance Transaction row
+  failureReason  String?
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Small key-value store for operational state (e.g. the Horizon payment
+// listener's last processed cursor, so restarts replay nothing and miss nothing).
+model SystemState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 // Immutable audit trail for financial and auth events. Append-only by

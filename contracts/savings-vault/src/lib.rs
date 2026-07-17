@@ -11,7 +11,8 @@
 //! released to their owner via `withdraw`, which requires the owner's signature.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, BytesN,
+    Env,
 };
 
 #[derive(Clone)]
@@ -38,6 +39,28 @@ pub enum Error {
 
 const MAX_RATE_BPS: u32 = 9000; // cap auto-save at 90%
 const BPS_DENOMINATOR: i128 = 10_000;
+
+// --- State-archival (rent) protection ---------------------------------------
+// Soroban archives entries whose TTL lapses; an archived Savings entry would
+// make a user's funds temporarily unreachable until restored. Every touch of
+// user state therefore extends its TTL well beyond the archival horizon.
+const DAY_LEDGERS: u32 = 17_280; // ~5s ledgers
+const TTL_THRESHOLD: u32 = 30 * DAY_LEDGERS; // extend when < 30 days remain
+const TTL_EXTEND_TO: u32 = 120 * DAY_LEDGERS; // …out to 120 days
+
+fn bump_instance(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+}
+
+fn bump_persistent(env: &Env, key: &DataKey) {
+    if env.storage().persistent().has(key) {
+        env.storage()
+            .persistent()
+            .extend_ttl(key, TTL_THRESHOLD, TTL_EXTEND_TO);
+    }
+}
 
 #[contract]
 pub struct SavingsVault;
@@ -66,7 +89,11 @@ impl SavingsVault {
         if rate_bps > MAX_RATE_BPS {
             panic_with_error(&env, Error::InvalidRate);
         }
-        env.storage().persistent().set(&DataKey::Rate(user), &rate_bps);
+        let key = DataKey::Rate(user.clone());
+        env.storage().persistent().set(&key, &rate_bps);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
+        env.events().publish((symbol_short!("rate"), user), rate_bps);
     }
 
     /// ⭐ Core: receive a remittance of `amount` from `from`, retain the
@@ -93,17 +120,15 @@ impl SavingsVault {
         let available = amount - saved;
 
         // Retain the saved portion; credit the user's on-chain savings balance.
-        let prev: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Savings(user.clone()))
-            .unwrap_or(0);
-        env.storage()
-            .persistent()
-            .set(&DataKey::Savings(user.clone()), &(prev + saved));
+        let savings_key = DataKey::Savings(user.clone());
+        let prev: i128 = env.storage().persistent().get(&savings_key).unwrap_or(0);
+        env.storage().persistent().set(&savings_key, &(prev + saved));
+        bump_persistent(&env, &savings_key);
+        bump_persistent(&env, &DataKey::Rate(user.clone()));
 
         let total: i128 = env.storage().instance().get(&DataKey::TotalSavings).unwrap_or(0);
         env.storage().instance().set(&DataKey::TotalSavings, &(total + saved));
+        bump_instance(&env);
 
         // Release the spendable remainder to the user.
         if available > 0 {
@@ -130,16 +155,13 @@ impl SavingsVault {
             &env.current_contract_address(),
             &amount,
         );
-        let prev: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Savings(user.clone()))
-            .unwrap_or(0);
-        env.storage()
-            .persistent()
-            .set(&DataKey::Savings(user.clone()), &(prev + amount));
+        let savings_key = DataKey::Savings(user.clone());
+        let prev: i128 = env.storage().persistent().get(&savings_key).unwrap_or(0);
+        env.storage().persistent().set(&savings_key, &(prev + amount));
+        bump_persistent(&env, &savings_key);
         let total: i128 = env.storage().instance().get(&DataKey::TotalSavings).unwrap_or(0);
         env.storage().instance().set(&DataKey::TotalSavings, &(total + amount));
+        bump_instance(&env);
         env.events().publish((symbol_short!("save"), user), amount);
     }
 
@@ -149,20 +171,17 @@ impl SavingsVault {
         if amount <= 0 {
             panic_with_error(&env, Error::InvalidAmount);
         }
-        let balance: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Savings(user.clone()))
-            .unwrap_or(0);
+        let savings_key = DataKey::Savings(user.clone());
+        let balance: i128 = env.storage().persistent().get(&savings_key).unwrap_or(0);
         if amount > balance {
             panic_with_error(&env, Error::InsufficientSavings);
         }
-        env.storage()
-            .persistent()
-            .set(&DataKey::Savings(user.clone()), &(balance - amount));
+        env.storage().persistent().set(&savings_key, &(balance - amount));
+        bump_persistent(&env, &savings_key);
 
         let total: i128 = env.storage().instance().get(&DataKey::TotalSavings).unwrap_or(0);
         env.storage().instance().set(&DataKey::TotalSavings, &(total - amount));
+        bump_instance(&env);
 
         let token = Self::require_token(&env);
         token::Client::new(&env, &token).transfer(
@@ -175,7 +194,36 @@ impl SavingsVault {
             .publish((symbol_short!("withdraw"), user), amount);
     }
 
+    // ---- Admin (operational safety) ------------------------------------------
+
+    /// Change the fallback auto-save rate for users without an override.
+    /// Admin-gated; individual `set_rate` overrides always win.
+    pub fn set_default_rate(env: Env, rate_bps: u32) {
+        Self::require_admin(&env).require_auth();
+        if rate_bps > MAX_RATE_BPS {
+            panic_with_error(&env, Error::InvalidRate);
+        }
+        env.storage()
+            .instance()
+            .set(&DataKey::DefaultRateBps, &rate_bps);
+        bump_instance(&env);
+        env.events().publish((symbol_short!("defrate"),), rate_bps);
+    }
+
+    /// Upgrade the contract WASM in place (admin-gated). Balances, rates and
+    /// the token binding live in storage, so state survives the upgrade —
+    /// this is the mainnet incident-response and migration path.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+        Self::require_admin(&env).require_auth();
+        bump_instance(&env);
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+    }
+
     // ---- Views --------------------------------------------------------------
+
+    pub fn admin(env: Env) -> Address {
+        Self::require_admin(&env)
+    }
 
     pub fn savings_of(env: Env, user: Address) -> i128 {
         env.storage()
@@ -208,6 +256,13 @@ impl SavingsVault {
         env.storage()
             .instance()
             .get(&DataKey::Token)
+            .unwrap_or_else(|| panic_with_error(env, Error::NotInitialized))
+    }
+
+    fn require_admin(env: &Env) -> Address {
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
             .unwrap_or_else(|| panic_with_error(env, Error::NotInitialized))
     }
 }

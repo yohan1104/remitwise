@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import { Networks } from "@stellar/stellar-sdk";
+import { validateConfiguredAsset } from "./assets";
 
 /**
  * RemitWise on-chain configuration — the deployed Soroban vault, the USDC
@@ -26,9 +27,23 @@ export interface StellarConfig {
 const CONFIG_PATH = path.join(process.cwd(), "stellar.config.json");
 
 let cached: StellarConfig | null = null;
+let assetChecked = false;
+
+/**
+ * Fail-fast asset validation: mainnet refuses to run against a non-Circle
+ * USDC issuer (see lib/stellar/assets.ts). Runs once per process.
+ */
+function checkAsset(cfg: StellarConfig): StellarConfig {
+  if (!assetChecked) {
+    assetChecked = true;
+    const result = validateConfiguredAsset(cfg);
+    if (result.notice) console.warn(`[stellar] ${result.notice}`);
+  }
+  return cfg;
+}
 
 export function getStellarConfig(): StellarConfig {
-  if (cached) return cached;
+  if (cached) return checkAsset(cached);
 
   // 1) Environment (production)
   if (process.env.STELLAR_VAULT_CONTRACT_ID && process.env.STELLAR_DISTRIBUTOR_SECRET) {
@@ -52,13 +67,13 @@ export function getStellarConfig(): StellarConfig {
         secret: process.env.STELLAR_DEPLOYER_SECRET ?? "",
       },
     };
-    return cached;
+    return checkAsset(cached);
   }
 
   // 2) Generated config file (local dev)
   if (fs.existsSync(CONFIG_PATH)) {
     cached = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")) as StellarConfig;
-    return cached;
+    return checkAsset(cached);
   }
 
   throw new Error(

@@ -98,6 +98,8 @@ export const TRANSACTION_TYPES = {
   savings_allocation: "savings_allocation",
   goal_contribution: "goal_contribution",
   withdrawal: "withdrawal",
+  /** USDC left the platform to a bank / e-wallet via the fiat off-ramp. */
+  cash_out: "cash_out",
 } as const;
 
 /** Default auto-savings rate applied to new users. */

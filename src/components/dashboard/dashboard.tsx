@@ -47,6 +47,8 @@ import { SavingsRateDialog } from "./savings-rate";
 import { NotificationsBell } from "./notifications";
 import { AllocationCenter } from "./allocation-center";
 import { SettingsDialog } from "./settings-dialog";
+import { ReceiveMoneyDialog } from "./receive-dialog";
+import { WithdrawalsCard } from "./withdrawals-card";
 
 const NAV = [
   { href: "#overview", label: "Overview", icon: LayoutDashboard },
@@ -149,6 +151,7 @@ function Topbar({ user }: { user: PublicUser }) {
             <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <SavingsRateDialog />
+          <ReceiveMoneyDialog className="hidden md:inline-flex" />
           <SimulateRemittanceButton className="hidden sm:inline-flex" />
           <NotificationsBell />
           <ThemeToggle />
@@ -176,8 +179,9 @@ function Topbar({ user }: { user: PublicUser }) {
         </div>
       </div>
       {/* Mobile action bar */}
-      <div className="flex items-center gap-2 border-t border-border/70 px-4 py-2 sm:hidden">
-        <SimulateRemittanceButton className="flex-1" />
+      <div className="flex items-center gap-2 border-t border-border/70 px-4 py-2 md:hidden">
+        <ReceiveMoneyDialog className="flex-1" />
+        <SimulateRemittanceButton className="flex-1 sm:hidden" />
       </div>
     </header>
   );
@@ -268,8 +272,9 @@ function Content() {
         <div id="transactions" className="scroll-mt-24">
           <TransactionsList />
         </div>
-        <div id="wallet" className="scroll-mt-24">
+        <div id="wallet" className="scroll-mt-24 space-y-6">
           <WalletCard />
+          <WithdrawalsCard />
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import {
   Target,
   Inbox,
   ExternalLink,
+  Landmark,
 } from "lucide-react";
 import {
   Card,
@@ -29,6 +30,7 @@ const META: Record<
   goal_contribution: { icon: Target, color: "#059669", label: "Goal contribution" },
   savings_allocation: { icon: PiggyBank, color: "#7c3aed", label: "Savings" },
   withdrawal: { icon: ArrowDownLeft, color: "#e11d48", label: "Withdrawal" },
+  cash_out: { icon: Landmark, color: "#d97706", label: "Bank cash-out" },
 };
 
 export function TransactionsList() {
@@ -111,10 +113,18 @@ export function TransactionsList() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold tabular-nums text-foreground">
-                        {isRemit ? "+" : ""}
+                        {isRemit ? "+" : t.type === "cash_out" ? "−" : ""}
                         {formatCurrency(t.amount)}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">{t.asset}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {t.status === "pending" ? (
+                          <span className="text-warning">pending</span>
+                        ) : t.status === "failed" ? (
+                          <span className="text-destructive">failed</span>
+                        ) : (
+                          t.asset
+                        )}
+                      </div>
                     </div>
                   </motion.li>
                 );

@@ -87,3 +87,82 @@ fn cannot_overdraw_savings() {
     client.deposit_remittance(&distributor, &user, &1000);
     client.withdraw(&user, &999); // only 200 saved
 }
+
+#[test]
+#[should_panic]
+fn rejects_zero_amount_deposit() {
+    let (env, client, _t, _tc, _ta) = setup();
+    let user = Address::generate(&env);
+    let distributor = Address::generate(&env);
+    client.deposit_remittance(&distributor, &user, &0);
+}
+
+#[test]
+#[should_panic]
+fn rejects_rate_above_cap() {
+    let (env, client, _t, _tc, _ta) = setup();
+    let user = Address::generate(&env);
+    client.set_rate(&user, &9001u32); // above MAX_RATE_BPS
+}
+
+#[test]
+#[should_panic]
+fn cannot_initialize_twice() {
+    let (env, client, token, _tc, _ta) = setup();
+    let intruder = Address::generate(&env);
+    client.initialize(&intruder, &token, &1000u32);
+}
+
+#[test]
+fn admin_can_change_default_rate() {
+    let (env, client, _t, _tc, token_admin) = setup();
+    let user = Address::generate(&env);
+    let distributor = Address::generate(&env);
+    token_admin.mint(&distributor, &1000);
+
+    client.set_default_rate(&2500u32); // 25%
+    assert_eq!(client.rate_of(&user), 2500); // no personal override → new default
+
+    let (saved, available) = client.deposit_remittance(&distributor, &user, &1000);
+    assert_eq!(saved, 250);
+    assert_eq!(available, 750);
+}
+
+#[test]
+#[should_panic]
+fn default_rate_respects_cap() {
+    let (_env, client, _t, _tc, _ta) = setup();
+    client.set_default_rate(&9500u32);
+}
+
+#[test]
+fn personal_override_survives_default_change() {
+    let (env, client, _t, _tc, _ta) = setup();
+    let user = Address::generate(&env);
+    client.set_rate(&user, &4000u32);
+    client.set_default_rate(&1000u32);
+    assert_eq!(client.rate_of(&user), 4000); // override wins
+}
+
+#[test]
+fn exposes_admin_and_token() {
+    let (_env, client, token, _tc, _ta) = setup();
+    assert_eq!(client.token(), token);
+    client.admin(); // must not panic once initialized
+}
+
+#[test]
+fn total_savings_tracks_all_users() {
+    let (env, client, _t, _tc, token_admin) = setup();
+    let a = Address::generate(&env);
+    let b = Address::generate(&env);
+    let distributor = Address::generate(&env);
+    token_admin.mint(&distributor, &3000);
+
+    client.deposit_remittance(&distributor, &a, &1000); // saves 200
+    client.deposit_remittance(&distributor, &b, &2000); // saves 400
+    assert_eq!(client.total_savings(), 600);
+
+    client.withdraw(&a, &200);
+    assert_eq!(client.total_savings(), 400);
+}

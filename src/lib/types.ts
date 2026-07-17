@@ -32,7 +32,12 @@ export interface ChainInfo {
 
 export interface TransactionView {
   id: string;
-  type: "remittance_received" | "savings_allocation" | "goal_contribution" | "withdrawal";
+  type:
+    | "remittance_received"
+    | "savings_allocation"
+    | "goal_contribution"
+    | "withdrawal"
+    | "cash_out";
   amount: number;
   asset: string;
   sender: string | null;
@@ -115,6 +120,62 @@ export interface DashboardData {
     spendVsSave: SpendVsSavePoint[];
     goalAllocation: GoalAllocationSlice[];
   };
+}
+
+// ---------------------------------------------------------------------------
+// Fiat ramps
+// ---------------------------------------------------------------------------
+
+export type WithdrawalStatusView =
+  | "pending_anchor"
+  | "converting"
+  | "paying_out"
+  | "completed"
+  | "failed";
+
+export interface WithdrawalView {
+  id: string;
+  amountUsdc: number;
+  feeUsdc: number;
+  fxRate: number;
+  fxSource: "reflector" | "reference";
+  payoutPhp: number;
+  fiatCurrency: string;
+  railCode: string;
+  railName: string;
+  /** Masked — full account numbers never leave the server. */
+  accountMasked: string;
+  accountName: string;
+  status: WithdrawalStatusView;
+  stellarTxId: string | null;
+  failureReason: string | null;
+  eta: string;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export type DepositStatusView =
+  | "awaiting_payment"
+  | "processing"
+  | "completed"
+  | "expired"
+  | "failed";
+
+export interface DepositIntentView {
+  id: string;
+  amountFiat: number;
+  fiatCurrency: string;
+  feeFiat: number;
+  fxRate: number;
+  amountUsdc: number;
+  senderName: string | null;
+  status: DepositStatusView;
+  /** Anchor-hosted page where the sender completes payment. */
+  interactiveUrl: string | null;
+  stellarTxId: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 export interface AiInsight {

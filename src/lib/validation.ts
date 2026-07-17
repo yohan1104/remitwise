@@ -86,6 +86,24 @@ export const importWalletSchema = z.object({
   secret: z.string().min(50, "Enter a valid Stellar secret key."),
 });
 
+export const withdrawalCreateSchema = z.object({
+  amountUsdc: z.coerce.number().positive("Amount must be greater than zero.").max(50_000),
+  railCode: z.string().min(3).max(40),
+  accountName: z
+    .string()
+    .trim()
+    .min(2, "Enter the account holder's full name.")
+    .max(80)
+    .regex(/^[\p{L}\p{M} .,'-]+$/u, "Account name contains unsupported characters."),
+  accountNumber: z.string().trim().min(6, "Enter the account number.").max(24),
+});
+
+export const depositCreateSchema = z.object({
+  amountFiat: z.coerce.number().positive("Amount must be greater than zero.").max(1_000_000),
+  fiatCurrency: z.string().length(3),
+  senderName: z.string().trim().max(80).optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type GoalInput = z.infer<typeof goalSchema>;

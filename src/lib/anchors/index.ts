@@ -1,54 +1,31 @@
 import "server-only";
+import type { AnchorProvider } from "./types";
+import { MockAnchor } from "./mock";
+import { Sep24Anchor } from "./sep24";
+
+export type * from "./types";
 
 /**
- * Fiat on/off-ramp abstraction (Stellar SEP-24 shape).
+ * Anchor selection — configuration, not code.
  *
- * Production connects a regulated anchor partner (MoneyGram Access, Vibrant,
- * a regional PH/GCC anchor) so a sender pays plain fiat by bank/card and the
- * anchor mints USDC on Stellar — landing in the same ingest pipeline as every
- * other remittance. This interface is the seam: swapping the mock for a real
- * SEP-24 client requires no changes anywhere else in the app.
+ *   ANCHOR_PROVIDER=mock   (default) simulated partner with realistic lifecycle
+ *   ANCHOR_PROVIDER=sep24  real SEP-24 anchor; requires ANCHOR_HOME_DOMAIN
+ *
+ * Everything above this seam (engines, APIs, UI) is provider-agnostic.
  */
+let instance: AnchorProvider | null = null;
 
-export interface DepositSession {
-  id: string;
-  /** Anchor-hosted interactive page where the sender completes payment/KYC. */
-  interactiveUrl: string;
-  status: "incomplete" | "pending_user" | "pending_anchor" | "completed" | "error";
-}
-
-export interface AnchorProvider {
-  readonly name: string;
-  /** Start a fiat→USDC deposit for a recipient's Stellar address. */
-  initiateDeposit(input: {
-    destinationPublicKey: string;
-    amount?: number;
-    fiatCurrency: string; // e.g. "USD", "AED", "SGD"
-  }): Promise<DepositSession>;
-  getDepositStatus(id: string): Promise<DepositSession>;
-}
-
-/** Placeholder used until an anchor partnership supplies real credentials. */
-export class MockAnchor implements AnchorProvider {
-  readonly name = "mock-anchor";
-  private sessions = new Map<string, DepositSession>();
-
-  async initiateDeposit({ destinationPublicKey }: { destinationPublicKey: string }) {
-    const id = `mock-${Date.now()}-${destinationPublicKey.slice(0, 4)}`;
-    const session: DepositSession = {
-      id,
-      interactiveUrl: `https://anchor.example/deposit/${id}`,
-      status: "pending_user",
-    };
-    this.sessions.set(id, session);
-    return session;
+export function getAnchor(): AnchorProvider {
+  if (instance) return instance;
+  const provider = process.env.ANCHOR_PROVIDER ?? "mock";
+  if (provider === "sep24") {
+    const domain = process.env.ANCHOR_HOME_DOMAIN;
+    if (!domain) {
+      throw new Error("ANCHOR_PROVIDER=sep24 requires ANCHOR_HOME_DOMAIN to be set.");
+    }
+    instance = new Sep24Anchor(domain);
+  } else {
+    instance = new MockAnchor();
   }
-
-  async getDepositStatus(id: string) {
-    return (
-      this.sessions.get(id) ?? { id, interactiveUrl: "", status: "error" as const }
-    );
-  }
+  return instance;
 }
-
-export const anchor: AnchorProvider = new MockAnchor();
