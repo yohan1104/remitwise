@@ -1,8 +1,11 @@
+import { rateLimit } from "@/lib/rate-limit";
 import { registerUser, AuthError } from "@/lib/auth/service";
 import { registerSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
 
 export async function POST(req: Request) {
+  const limited = await rateLimit("auth");
+  if (limited) return limited;
   try {
     const parsed = registerSchema.safeParse(await req.json());
     if (!parsed.success) {

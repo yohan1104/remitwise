@@ -9,7 +9,7 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await authed();
+  const guard = await authed("financial");
   if (guard instanceof NextResponse) return guard;
   const { id } = await params;
   const parsed = contributeSchema.safeParse(await req.json().catch(() => ({})));

@@ -8,7 +8,7 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await authed();
+  const guard = await authed("financial");
   if (guard instanceof NextResponse) return guard;
   const { id } = await params;
   try {

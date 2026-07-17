@@ -18,7 +18,7 @@ export const maxDuration = 60;
  *  4. mark the account onboarded.
  */
 export async function POST(req: Request) {
-  const guard = await authed();
+  const guard = await authed("financial");
   if (guard instanceof NextResponse) return guard;
   const parsed = onboardingSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {

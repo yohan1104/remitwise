@@ -9,7 +9,9 @@ import {
   setUserRate,
   explorer,
 } from "@/lib/stellar/soroban";
-import { allocateSavings, round2, round7 } from "./allocation";
+import { allocateSavings } from "./allocation";
+import { addUsdc, subUsdc, round2, round7 } from "@/lib/money";
+import { audit } from "@/lib/audit";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -62,8 +64,8 @@ export async function receiveRemittance(input: ReceiveRemittanceInput): Promise<
   const availableAmount = round7(onchain.available);
 
   // 2) Mirror the resulting state in the DB (source of truth is the chain).
-  const newAvailableBalance = round7(wallet.availableBalance + availableAmount);
-  const newSavingsBalance = round7(wallet.savingsBalance + savedAmount);
+  const newAvailableBalance = addUsdc(wallet.availableBalance, availableAmount);
+  const newSavingsBalance = addUsdc(wallet.savingsBalance, savedAmount);
 
   const { transactionId, goalsUpdated } = await prisma.$transaction(async (tx) => {
     await tx.wallet.update({
@@ -86,6 +88,8 @@ export async function receiveRemittance(input: ReceiveRemittanceInput): Promise<
     const goalsUpdated = await earmarkSavingsToGoals(tx, userId, savedAmount);
     return { transactionId: transaction.id, goalsUpdated };
   });
+
+  await audit({ action: "remittance.received", userId, amount, txHash: onchain.hash });
 
   return {
     transactionId,
@@ -138,8 +142,8 @@ export async function contributeToGoal(input: { userId: string; goalId: string; 
     await tx.wallet.update({
       where: { userId: input.userId },
       data: {
-        availableBalance: round7(wallet.availableBalance - applied),
-        savingsBalance: round7(wallet.savingsBalance + applied),
+        availableBalance: subUsdc(wallet.availableBalance, applied),
+        savingsBalance: addUsdc(wallet.savingsBalance, applied),
       },
     });
     await tx.goal.update({
@@ -161,6 +165,7 @@ export async function contributeToGoal(input: { userId: string; goalId: string; 
     });
   });
 
+  await audit({ action: "goal.contribute", userId: input.userId, amount: applied, txHash: hash, detail: goal.name });
   return { applied, goalId: goal.id, stellarTxId: hash, explorerUrl: explorer().tx(hash) };
 }
 
@@ -188,8 +193,8 @@ export async function withdrawGoal(input: { userId: string; goalId: string }) {
     await tx.wallet.update({
       where: { userId: input.userId },
       data: {
-        availableBalance: round7(wallet.availableBalance + amount),
-        savingsBalance: round7(Math.max(0, wallet.savingsBalance - amount)),
+        availableBalance: addUsdc(wallet.availableBalance, amount),
+        savingsBalance: subUsdc(wallet.savingsBalance, amount, { floorZero: true }),
       },
     });
     await tx.goal.update({
@@ -208,6 +213,7 @@ export async function withdrawGoal(input: { userId: string; goalId: string }) {
     });
   });
 
+  await audit({ action: "goal.withdraw", userId: input.userId, amount, txHash: hash, detail: goal.name });
   return { amount, goalId: goal.id, stellarTxId: hash, explorerUrl: explorer().tx(hash) };
 }
 
@@ -224,10 +230,11 @@ export async function withdrawFromSavings(input: { userId: string; amount: numbe
   await prisma.wallet.update({
     where: { userId: input.userId },
     data: {
-      availableBalance: round7(wallet.availableBalance + amount),
-      savingsBalance: round7(wallet.savingsBalance - amount),
+      availableBalance: addUsdc(wallet.availableBalance, amount),
+      savingsBalance: subUsdc(wallet.savingsBalance, amount, { floorZero: true }),
     },
   });
+  await audit({ action: "savings.withdraw", userId: input.userId, amount, txHash: hash });
   return { amount, stellarTxId: hash, explorerUrl: explorer().tx(hash) };
 }
 

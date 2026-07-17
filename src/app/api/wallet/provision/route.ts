@@ -9,7 +9,7 @@ export const maxDuration = 60;
  * Idempotent and safe to poll from the client.
  */
 export async function POST() {
-  const guard = await authed();
+  const guard = await authed("financial");
   if (guard instanceof NextResponse) return guard;
   try {
     const result = await provisionWalletForUser(guard.id);

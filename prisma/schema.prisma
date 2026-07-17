@@ -112,3 +112,18 @@ model Goal {
 
   @@index([userId])
 }
+
+// Immutable audit trail for financial and auth events. Append-only by
+// convention — the app never updates or deletes rows.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // e.g. remittance.received, goal.withdraw, auth.login
+  amount    Float?
+  txHash    String?
+  detail    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

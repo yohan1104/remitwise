@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession, getSession } from "./session";
 import { createWalletForUser } from "@/lib/stellar/service";
+import { audit } from "@/lib/audit";
 import { DEFAULT_SAVINGS_RATE } from "@/lib/constants";
 
 export class AuthError extends Error {}
@@ -58,6 +59,7 @@ export async function registerUser(input: {
 
   await createWalletForUser(user.id);
   await createSession({ userId: user.id, email: user.email });
+  await audit({ action: "auth.register", userId: user.id });
   return toPublic(user);
 }
 

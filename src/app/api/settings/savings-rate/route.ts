@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 export const maxDuration = 60;
 
 export async function PATCH(req: Request) {
-  const guard = await authed();
+  const guard = await authed("financial");
   if (guard instanceof NextResponse) return guard;
   const parsed = savingsRateSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {

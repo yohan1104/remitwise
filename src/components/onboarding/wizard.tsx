@@ -188,7 +188,8 @@ function AccountStep({ onCreated }: { onCreated: () => void }) {
     const e: Record<string, string> = {};
     if (name.trim().length < 2) e.name = "Please enter your full name.";
     if (!/^\S+@\S+\.\S+$/.test(email)) e.email = "Enter a valid email address.";
-    if (password.length < 6) e.password = "Password must be at least 6 characters.";
+    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password))
+      e.password = "Use at least 8 characters with a letter and a number.";
     if (confirm !== password) e.confirm = "Passwords don't match.";
     setErrors(e);
     return Object.keys(e).length === 0;

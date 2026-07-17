@@ -21,7 +21,14 @@ const authSecret = requireInProd(
   "remitwise-insecure-dev-secret-change-me-0000000000000000",
 );
 
+/**
+ * Shared secret for the payment-ingest webhook (Horizon listener / anchor
+ * callbacks). When unset, the ingest endpoint refuses all requests.
+ */
+const paymentWebhookSecret = process.env.PAYMENT_WEBHOOK_SECRET ?? "";
+
 export const env = {
+  paymentWebhookSecret,
   authSecret,
   // Falls back to AUTH_SECRET (already validated) so one strong secret suffices.
   walletEncryptionKey:

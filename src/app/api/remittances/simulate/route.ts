@@ -13,7 +13,7 @@ export const maxDuration = 60;
  * payment-stream webhook that calls the exact same `receiveRemittance` service.
  */
 export async function POST(req: Request) {
-  const guard = await authed();
+  const guard = await authed("financial");
   if (guard instanceof NextResponse) return guard;
   try {
     const parsed = remittanceSchema.safeParse(await req.json().catch(() => ({})));

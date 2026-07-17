@@ -16,6 +16,7 @@
     "contract:test": "cd contracts/savings-vault && cargo test",
     "stellar:bootstrap": "tsx scripts/bootstrap-stellar.ts",
     "stellar:env": "tsx scripts/print-vercel-env.ts",
+    "payments:listen": "tsx scripts/payment-listener.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
