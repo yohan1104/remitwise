@@ -231,6 +231,12 @@ prisma/  schema.prisma · seed.ts (on-chain demo seeder)
 
 ---
 
+## License
+
+MIT — see [LICENSE](LICENSE). All code is open source and publicly accessible.
+
+---
+
 A Live Video Demo : https://youtu.be/8CQ6Ikw9z8s
 
 <div align="center">
