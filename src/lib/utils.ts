@@ -41,6 +41,19 @@ export function truncateKey(key: string, lead = 6, tail = 6): string {
   return `${key.slice(0, lead)}…${key.slice(-tail)}`;
 }
 
+/** stellar.expert link for a transaction hash on the given network. */
+export function explorerTxUrl(network: string, hash: string): string {
+  return `https://stellar.expert/explorer/${network}/tx/${hash}`;
+}
+
+/** Full, unambiguous timestamp for receipts and detail views. */
+export function formatDateTime(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
+}
+
 export function initials(name: string): string {
   return name
     .split(" ")

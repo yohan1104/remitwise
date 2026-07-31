@@ -22,7 +22,8 @@ export type AuditAction =
   | "withdrawal.failed"
   | "deposit.intent_created"
   | "deposit.completed"
-  | "deposit.failed";
+  | "deposit.failed"
+  | "activity.export";
 
 export async function audit(entry: {
   action: AuditAction;

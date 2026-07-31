@@ -178,6 +178,46 @@ export interface DepositIntentView {
   completedAt: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Activity & statements
+// ---------------------------------------------------------------------------
+
+export interface TransactionPage {
+  transactions: TransactionView[];
+  /** Pass back as ?cursor= to fetch the next page; null when exhausted. */
+  nextCursor: string | null;
+}
+
+export interface StatementSummary {
+  remittanceCount: number;
+  totalReceived: number;
+  totalSaved: number;
+  totalSpendable: number;
+  /** totalSaved / totalReceived for the period (0 when no remittances). */
+  effectiveRate: number;
+  goalContributions: number;
+  vaultWithdrawals: number;
+  cashOutCount: number;
+  cashOutTotal: number;
+}
+
+export interface StatementData {
+  /** Period key, e.g. "2026-07". */
+  month: string;
+  /** Human label, e.g. "July 2026". */
+  label: string;
+  generatedAt: string;
+  user: { name: string; email: string };
+  wallet: { publicKey: string; network: string };
+  chain: { vaultContractId: string };
+  fx: { usdPhp: number; source: "reflector" | "reference" };
+  summary: StatementSummary;
+  /** Remittances received in the period (ascending by date). */
+  remittances: TransactionView[];
+  /** All other activity in the period (ascending by date). */
+  other: TransactionView[];
+}
+
 export interface AiInsight {
   id: string;
   kind: "savings" | "goal" | "spending" | "advice" | "forecast";
