@@ -21,14 +21,18 @@ _Stellar MVP — real on-chain settlement, demo-ready end-to-end._
 
 ## 🧑‍⚖️ For judges — the 30-second tour
 
-1. **Log in** with `demo@remitwise.app` / `demo1234` (or register — your wallet is
-   created **gaslessly**: sponsored reserves + USDC trustline, 0 XLM).
+1. **Log in** with `demo@remitwise.app` / `demo1234` (or register — a guided
+   first-run takes you from a **gaslessly provisioned wallet** — sponsored
+   reserves + USDC trustline, 0 XLM — to your first auto-saved remittance).
 2. Click **Simulate Remittance → $500 → Receive.** A real Soroban transaction
    settles on testnet; the vault contract retains 20% and releases 80% atomically.
 3. Click **"view on Stellar"** on the success screen — the tx opens on
    stellar.expert. Every transaction in the history has a verifiable hash.
-4. Fund a goal to 100% → **Withdraw to wallet** (an on-chain vault withdrawal).
-5. In AI Insights, tap **"Raise rate to 25%"** — a fee-bumped, user-signed
+4. **Cash out to a PH bank/e-wallet** (GCash and 11 other rails): a quote-locked
+   USDC → ₱ payout via the SEP-24 anchor flow, fee-bumped on-chain.
+5. Open **Activity → Statements** — a printable monthly statement where every
+   line carries its Stellar tx hash: **bankable proof of remittance income**.
+6. In AI Insights, tap **"Raise rate to 25%"** — a fee-bumped, user-signed
    `set_rate` contract call.
 
 **Verify independently:** the [savings-vault contract](contracts/savings-vault/src/lib.rs)
@@ -42,14 +46,23 @@ Most remittance apps just move money. RemitWise makes every transfer build wealt
 and does it **trustlessly on Stellar**:
 
 1. **You log in** and get a real Stellar wallet (funded + USDC trustline).
-2. **A USDC remittance arrives** (a real testnet payment; simulated for the demo).
+2. **A USDC remittance arrives** — a real testnet payment: simulated for the
+   demo, or paid by a sender abroad in **their own currency** through the
+   SEP-24 on-ramp checkout link.
 3. **The Soroban vault contract enforces the split** — retains your savings
    share on-chain and releases the rest to your wallet, atomically.
 4. **Savings goals advance automatically**, and the dashboard updates live.
-5. **AI generates personalized, actionable insights** from your real numbers.
+5. **Cash out to pesos** — quote-locked USDC → ₱ payouts to GCash, Maya, and
+   PH banks through the anchor seam (mock anchor locally, real SEP-24 client
+   included).
+6. **AI generates personalized, actionable insights** from your real numbers.
 
 Every remittance produces a **real transaction hash you can open on
-stellar.expert**. The saved USDC is held by the contract, not a database row.
+stellar.expert**. The saved USDC is held by the contract, not a database row —
+and the **Activity page turns that history into monthly statements** (print /
+CSV) where each line is independently verifiable on the public ledger. The app
+is an installable **PWA** with a mobile-first bottom navigation, because our
+users live on their phones.
 
 ---
 
@@ -76,7 +89,9 @@ stellar.expert**. The saved USDC is held by the contract, not a database row.
   webhook** — no app changes needed to go live.
 
 Contract methods: `deposit_remittance`, `deposit_savings`, `withdraw`,
-`set_rate`, `savings_of`, `rate_of`, `total_savings`.
+`set_rate`, `set_default_rate`, `upgrade`, `savings_of`, `rate_of`,
+`total_savings`, `token`, `admin` — with events and storage-TTL bumps
+(13 Rust unit tests).
 
 ### Stellar primitives used (and why each matters)
 
@@ -195,7 +210,10 @@ src/
       config.ts              loads deployed contract/treasury config
       service.ts             wallet provisioning + encrypted keys
     savings/engine.ts        ⭐ settles remittances on-chain via the vault
+    payouts/                 fiat off-ramp (quotes, cash-outs) + on-ramp deposits
+    anchors/                 SEP-24 anchor seam (mock + real client) · 12 PH rails
     dashboard/service.ts     analytics + financial health
+    dashboard/transactions.ts  paginated history, CSV export, monthly statements
     ai/service.ts            insights (provider + actionable mock)
     crypto.ts / crypto-core.ts   AES-256-GCM for secrets at rest
 prisma/  schema.prisma · seed.ts (on-chain demo seeder)
@@ -215,7 +233,10 @@ prisma/  schema.prisma · seed.ts (on-chain demo seeder)
 
 ## 📖 More docs
 
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — system design: engine, ramps, listener, custody seam
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Vercel + Supabase + contract config
+- **[docs/MAINNET.md](docs/MAINNET.md)** — mainnet checklist (Circle USDC issuer pinning, anchors)
+- **[docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)** — findings + fixes from the internal audit
 - **[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)** — 3–5 minute presentation script
 - **[docs/ROADMAP.md](docs/ROADMAP.md)** — beyond the MVP
 
@@ -226,10 +247,11 @@ prisma/  schema.prisma · seed.ts (on-chain demo seeder)
 | Command | Description |
 |---------|-------------|
 | `npm run dev` / `build` / `start` | Next.js app |
-| `npm test` | Unit tests (allocation math, encryption round-trips) |
+| `npm test` | Unit tests — allocation math, exact money math, encryption, CSV/statement helpers (30) |
 | `npm run contract:build` | Compile the Soroban contract to wasm |
-| `npm run contract:test` | Run the contract's Rust unit tests (5) |
+| `npm run contract:test` | Run the contract's Rust unit tests (13) |
 | `npm run stellar:bootstrap` | Deploy vault + USDC asset, write config (`--force` to redeploy) |
+| `npm run payments:listen` | Horizon payment listener → idempotent ingest webhook |
 | `npm run db:push` / `db:seed` / `db:reset` | Database |
 
 ---
