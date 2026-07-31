@@ -11,6 +11,7 @@ export type AuditAction =
   | "auth.register"
   | "auth.login"
   | "auth.login_failed"
+  | "auth.password_changed"
   | "remittance.received"
   | "goal.contribute"
   | "goal.withdraw"

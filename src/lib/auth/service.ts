@@ -82,6 +82,19 @@ export async function logoutUser(): Promise<void> {
   await destroySession();
 }
 
+/** Change the account password after verifying the current one. */
+export async function changePassword(
+  userId: string,
+  input: { currentPassword: string; newPassword: string },
+): Promise<void> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!ok) throw new AuthError("Current password is incorrect.");
+  const passwordHash = await bcrypt.hash(input.newPassword, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await audit({ action: "auth.password_changed", userId });
+}
+
 /** Returns the authenticated user or null. Safe to call in server components. */
 export async function getCurrentUser(): Promise<PublicUser | null> {
   const session = await getSession();

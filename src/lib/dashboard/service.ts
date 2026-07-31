@@ -38,6 +38,11 @@ export async function getDashboardData(
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
   ]);
 
+  // Full history stays server-side (totals + charts are computed from it);
+  // the client payload carries only what the dashboard renders — the recent
+  // list (10) and the notifications bell (8). Full history lives at
+  // /dashboard/activity behind the paginated /api/transactions.
+  const RECENT_LIMIT = 20;
   const transactions: TransactionView[] = txRaw.map((t) => ({
     id: t.id,
     type: t.type as TransactionView["type"],
@@ -160,7 +165,7 @@ export async function getDashboardData(
       remittanceCount: remittances.length,
     }),
     goals,
-    transactions,
+    transactions: transactions.slice(0, RECENT_LIMIT),
     charts: {
       savingsOverTime: buildSavingsOverTime(txRaw),
       spendVsSave: buildSpendVsSave(remittances),

@@ -1,14 +1,22 @@
 import { z } from "zod";
 
+/** Shared password policy: 8+ chars with at least one letter and number. */
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters.")
+  .max(128, "Password is too long.")
+  .regex(/[a-zA-Z]/, "Password must include a letter.")
+  .regex(/[0-9]/, "Password must include a number.");
+
 export const registerSchema = z.object({
   name: z.string().min(2, "Please enter your name."),
   email: z.string().email("Enter a valid email."),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters.")
-    .max(128, "Password is too long.")
-    .regex(/[a-zA-Z]/, "Password must include a letter.")
-    .regex(/[0-9]/, "Password must include a number."),
+  password: passwordSchema,
+});
+
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Enter your current password."),
+  newPassword: passwordSchema,
 });
 
 export const loginSchema = z.object({

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Loader2, Monitor, Moon, Sun, Settings as SettingsIcon } from "lucide-react";
+import { KeyRound, Loader2, Monitor, Moon, Sun, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,8 @@ export function SettingsDialog({ initialName }: { initialName: string }) {
               </div>
             </div>
 
+            <PasswordSection />
+
             <p className="text-[11px] text-muted-foreground">
               Auto-save rate: use the sliders button in the top bar (writes to the Stellar
               contract). Goal allocation: “Savings Plan” section on the dashboard.
@@ -96,5 +98,62 @@ export function SettingsDialog({ initialName }: { initialName: string }) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function PasswordSection() {
+  const [current, setCurrent] = React.useState("");
+  const [next, setNext] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  async function changePassword() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/settings/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success("Password changed");
+      setCurrent("");
+      setNext("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not change password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2.5 rounded-xl border border-border/70 p-3.5">
+      <Label className="flex items-center gap-1.5">
+        <KeyRound className="size-3.5 text-primary" /> Change password
+      </Label>
+      <Input
+        type="password"
+        autoComplete="current-password"
+        placeholder="Current password"
+        aria-label="Current password"
+        value={current}
+        onChange={(e) => setCurrent(e.target.value)}
+      />
+      <Input
+        type="password"
+        autoComplete="new-password"
+        placeholder="New password (8+ chars, letter + number)"
+        aria-label="New password"
+        value={next}
+        onChange={(e) => setNext(e.target.value)}
+      />
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={changePassword}
+        disabled={busy || !current || next.length < 8}
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" /> : "Update password"}
+      </Button>
+    </div>
   );
 }
