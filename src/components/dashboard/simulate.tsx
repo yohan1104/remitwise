@@ -28,9 +28,12 @@ const STEPS = [
 export function SimulateRemittanceButton({
   variant = "default",
   className,
+  trigger,
 }: {
   variant?: "default" | "outline";
   className?: string;
+  /** Custom trigger element (overrides the default button). */
+  trigger?: React.ReactNode;
 }) {
   const { data, refresh } = useDashboard();
   const [open, setOpen] = React.useState(false);
@@ -83,9 +86,11 @@ export function SimulateRemittanceButton({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant={variant} className={className}>
-          <Zap className="size-4" /> Simulate Remittance
-        </Button>
+        {trigger ?? (
+          <Button variant={variant} className={className}>
+            <Zap className="size-4" /> Simulate Remittance
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md overflow-hidden">
         <AnimatePresence mode="wait">

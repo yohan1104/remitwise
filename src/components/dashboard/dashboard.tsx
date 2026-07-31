@@ -13,6 +13,7 @@ import {
   Sparkles,
   LogOut,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/logo";
@@ -49,6 +50,7 @@ import { AllocationCenter } from "./allocation-center";
 import { SettingsDialog } from "./settings-dialog";
 import { ReceiveMoneyDialog } from "./receive-dialog";
 import { WithdrawalsCard } from "./withdrawals-card";
+import { MobileNav } from "./mobile-nav";
 
 const NAV = [
   { href: "#overview", label: "Overview", icon: LayoutDashboard },
@@ -72,9 +74,10 @@ export function Dashboard({
         <Sidebar />
         <div className="flex min-w-0 flex-col">
           <Topbar user={user} />
-          <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 sm:px-6">
+          <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 pb-28 sm:px-6 lg:pb-6">
             <Content />
           </main>
+          <MobileNav />
         </div>
       </div>
     </DashboardProvider>
@@ -152,7 +155,14 @@ function Topbar({ user }: { user: PublicUser }) {
           </Button>
           <SavingsRateDialog />
           <ReceiveMoneyDialog className="hidden md:inline-flex" />
-          <SimulateRemittanceButton className="hidden sm:inline-flex" />
+          <SimulateRemittanceButton
+            trigger={
+              <Button aria-label="Simulate remittance">
+                <Zap className="size-4" />
+                <span className="hidden sm:inline">Simulate Remittance</span>
+              </Button>
+            }
+          />
           <NotificationsBell />
           <ThemeToggle />
           <DropdownMenu>
@@ -177,11 +187,6 @@ function Topbar({ user }: { user: PublicUser }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
-      {/* Mobile action bar */}
-      <div className="flex items-center gap-2 border-t border-border/70 px-4 py-2 md:hidden">
-        <ReceiveMoneyDialog className="flex-1" />
-        <SimulateRemittanceButton className="flex-1 sm:hidden" />
       </div>
     </header>
   );

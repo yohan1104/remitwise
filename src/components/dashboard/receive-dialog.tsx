@@ -47,9 +47,12 @@ import type { DepositIntentView } from "@/lib/types";
 export function ReceiveMoneyDialog({
   variant = "outline",
   className,
+  trigger,
 }: {
   variant?: "default" | "outline";
   className?: string;
+  /** Custom trigger element (e.g. the mobile nav's center action). */
+  trigger?: React.ReactNode;
 }) {
   const { data, refresh } = useDashboard();
   const [open, setOpen] = React.useState(false);
@@ -136,9 +139,11 @@ export function ReceiveMoneyDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant={variant} className={className} disabled={!data.wallet.provisioned}>
-          <Globe className="size-4" /> Receive from abroad
-        </Button>
+        {trigger ?? (
+          <Button variant={variant} className={className} disabled={!data.wallet.provisioned}>
+            <Globe className="size-4" /> Receive from abroad
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md overflow-hidden">
         <AnimatePresence mode="wait">

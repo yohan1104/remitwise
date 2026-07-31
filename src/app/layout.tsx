@@ -7,10 +7,22 @@ import { Toaster } from "@/components/ui/sonner";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+// Stable production URL when deployed on Vercel; per-deployment URL as a
+// fallback; localhost in dev. Fixes OG/Twitter image resolution.
+const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  ? process.env.NEXT_PUBLIC_APP_URL
+  : process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: "RemitWise — Send More. Save Smarter. Live Better.",
   description:
     "RemitWise turns every remittance into an opportunity to build financial security — automatic savings, goals, and AI-powered guidance on Stellar.",
+  applicationName: "RemitWise",
   keywords: [
     "remittance",
     "savings",
@@ -20,6 +32,11 @@ export const metadata: Metadata = {
     "OFW",
     "financial wellness",
   ],
+  appleWebApp: {
+    capable: true,
+    title: "RemitWise",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "RemitWise",
     description: "Send More. Save Smarter. Live Better.",
@@ -35,6 +52,7 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
   ],
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
