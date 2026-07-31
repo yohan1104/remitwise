@@ -14,6 +14,7 @@ import {
   LogOut,
   RefreshCw,
   Zap,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/logo";
@@ -51,6 +52,7 @@ import { SettingsDialog } from "./settings-dialog";
 import { ReceiveMoneyDialog } from "./receive-dialog";
 import { WithdrawalsCard } from "./withdrawals-card";
 import { MobileNav } from "./mobile-nav";
+import { GetStartedCard } from "./get-started";
 
 const NAV = [
   { href: "#overview", label: "Overview", icon: LayoutDashboard },
@@ -59,6 +61,7 @@ const NAV = [
   { href: "#wallet", label: "Wallet", icon: WalletIcon },
   { href: "#transactions", label: "Transactions", icon: Receipt },
   { href: "#insights", label: "AI Insights", icon: Sparkles },
+  { href: "/dashboard/activity", label: "Activity & Statements", icon: History },
 ];
 
 export function Dashboard({
@@ -75,7 +78,7 @@ export function Dashboard({
         <div className="flex min-w-0 flex-col">
           <Topbar user={user} />
           <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 pb-28 sm:px-6 lg:pb-6">
-            <Content />
+            <Content userId={user.id} />
           </main>
           <MobileNav />
         </div>
@@ -91,16 +94,21 @@ function Sidebar() {
         <Logo size={30} />
       </Link>
       <nav className="mt-4 space-y-1">
-        {NAV.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <item.icon className="size-4.5" />
-            {item.label}
-          </a>
-        ))}
+        {NAV.map((item) => {
+          const cls =
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
+          return item.href.startsWith("/") ? (
+            <Link key={item.href} href={item.href} className={cls}>
+              <item.icon className="size-4.5" />
+              {item.label}
+            </Link>
+          ) : (
+            <a key={item.href} href={item.href} className={cls}>
+              <item.icon className="size-4.5" />
+              {item.label}
+            </a>
+          );
+        })}
       </nav>
       <div className="mt-auto rounded-xl border border-primary/20 bg-primary/5 p-4">
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -233,7 +241,9 @@ function ProvisionBanner() {
     })();
   }, [data.wallet.provisioned, status, refresh]);
 
-  if (data.wallet.provisioned) return null;
+  // The Get Started card owns the provisioning display for brand-new
+  // accounts; this banner covers re-provisioning for established ones.
+  if (data.wallet.provisioned || data.totals.remittanceCount === 0) return null;
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm">
       <RefreshCw className="size-4 animate-spin text-primary" />
@@ -245,9 +255,10 @@ function ProvisionBanner() {
   );
 }
 
-function Content() {
+function Content({ userId }: { userId: string }) {
   return (
     <>
+      <GetStartedCard userId={userId} />
       <ProvisionBanner />
       <Section id="overview">
         <StatCards />

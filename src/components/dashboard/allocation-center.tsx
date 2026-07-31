@@ -25,14 +25,24 @@ export function AllocationCenter() {
     (g) => g.status === "active" && !g.isCompleted && !g.claimedAt,
   );
 
-  const [draft, setDraft] = React.useState<Record<string, number>>({});
+  // Seed from server data on first render (not an effect) so SSR markup
+  // matches the real plan — no 0% flash before hydration.
+  const [draft, setDraft] = React.useState<Record<string, number>>(() =>
+    Object.fromEntries(planable.map((g) => [g.id, Math.round(g.allocationPct)])),
+  );
   const [busy, setBusy] = React.useState(false);
 
   // Rebuild the draft whenever the underlying plan changes.
+  const planKey = data.goals
+    .map((g) => `${g.id}:${g.allocationPct}:${g.status}`)
+    .join("|");
+  const lastKey = React.useRef(planKey);
   React.useEffect(() => {
+    if (lastKey.current === planKey) return;
+    lastKey.current = planKey;
     setDraft(Object.fromEntries(planable.map((g) => [g.id, Math.round(g.allocationPct)])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.goals.map((g) => `${g.id}:${g.allocationPct}:${g.status}`).join("|")]);
+  }, [planKey]);
 
   if (planable.length === 0) return null;
 
