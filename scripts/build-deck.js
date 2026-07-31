@@ -223,9 +223,9 @@ async function main() {
     card(s, 0.7, 5.05, 11.6, 1.65, CARD);
     s.addText("VERIFY IT YOURSELF — STELLAR TESTNET", { x: 1.0, y: 5.2, w: 8, h: 0.3, fontFace: "Arial", fontSize: 11, bold: true, color: TEAL, charSpacing: 2, margin: 0 });
     const proofs = [
-      ["Savings Vault contract", "CBYWNM…DJH5G"],
-      ["Live remittance tx", "77fccd7f…b33dd7ef"],
-      ["USDC asset issuer", "GBQXWF5B…AFW2K"],
+      ["Savings Vault contract", "CCJDFG…CY6KB"],
+      ["Live remittance tx", "aeab4d86…a8ee3a25"],
+      ["USDC asset issuer", "GC6L3T4A…IP3JQ75F"],
     ];
     proofs.forEach((pr, i) => {
       const x = 1.0 + i * 3.8;

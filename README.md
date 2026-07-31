@@ -12,6 +12,9 @@ backend promise — it's a **deployed Soroban smart contract** on Stellar.
 
 _Stellar MVP — real on-chain settlement, demo-ready end-to-end._
 
+[![CI](https://github.com/yohan1104/remitwise/actions/workflows/ci.yml/badge.svg)](https://github.com/yohan1104/remitwise/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 </div>
 
 ---
