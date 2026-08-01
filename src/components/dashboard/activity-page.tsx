@@ -39,17 +39,16 @@ import type { TransactionPage, TransactionView } from "@/lib/types";
 import { TX_META, txSign, txTitle } from "./transaction-meta";
 import { TransactionDetailDialog } from "./transaction-detail";
 
-type FilterKey = "all" | "in" | "savings" | "payments" | "out";
+type FilterKey = "all" | "in" | "savings" | "out";
 
 const FILTERS: { key: FilterKey; label: string; types: string[] }[] = [
   { key: "all", label: "All", types: [] },
-  { key: "in", label: "Received", types: ["remittance_received", "transfer_received"] },
+  { key: "in", label: "Received", types: ["remittance_received"] },
   {
     key: "savings",
     label: "Savings",
     types: ["goal_contribution", "withdrawal", "savings_allocation"],
   },
-  { key: "payments", label: "QR payments", types: ["transfer_sent", "transfer_received"] },
   { key: "out", label: "Cash-outs", types: ["cash_out"] },
 ];
 

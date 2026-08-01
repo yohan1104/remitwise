@@ -16,20 +16,10 @@ import type { Resolver } from "react-hook-form";
 type Mode = "login" | "register";
 type FormValues = { name?: string; email: string; password: string };
 
-/**
- * Only same-origin paths are honoured as a post-login destination — never a
- * caller-supplied absolute URL, which would make this an open redirect.
- */
-function safeNext(next?: string): string {
-  if (!next) return "/dashboard";
-  return /^\/(?!\/)[\w\-./?=&%]*$/.test(next) ? next : "/dashboard";
-}
-
-export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
+export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const isRegister = mode === "register";
   const [submitting, setSubmitting] = React.useState(false);
-  const destination = safeNext(next);
 
   const {
     register,
@@ -54,7 +44,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
       toast.success(isRegister ? "Welcome to RemitWise!" : "Welcome back!");
-      router.push(destination);
+      router.push("/dashboard");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");

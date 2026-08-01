@@ -112,46 +112,6 @@ export const depositCreateSchema = z.object({
   senderName: z.string().trim().max(80).optional(),
 });
 
-// --- QR payments -----------------------------------------------------------
-
-/** Raw scanned string. Length-capped before any parsing work happens. */
-export const qrResolveSchema = z.object({
-  payload: z.string().trim().min(1, "Nothing to scan.").max(2048),
-});
-
-export const paymentRequestCreateSchema = z.object({
-  /**
-   * Omit for an "open" request the payer fills in. The bound here is a shape
-   * guard only — the real limit lives in lib/payments/fees.ts so the caller
-   * gets a specific `amount_too_large` code instead of a schema error.
-   */
-  amount: z.coerce
-    .number()
-    .positive("Amount must be greater than zero.")
-    .max(1_000_000)
-    .optional(),
-  note: z.string().trim().max(80).optional(),
-  /** 5 minutes … 24 hours. */
-  expiresInMinutes: z.coerce.number().int().min(5).max(1440).optional(),
-  singleUse: z.boolean().optional(),
-});
-
-export const transferCreateSchema = z.object({
-  /** Server-signed resolution from /api/payments/qr/resolve. */
-  intentToken: z.string().min(16).max(2048),
-  /** Only honoured when the request left the amount open. Business limits are
-   *  enforced downstream so over-limit amounts get a specific error code. */
-  amount: z.coerce.number().positive().max(1_000_000).optional(),
-  note: z.string().trim().max(80).optional(),
-  /** Client-generated per confirmation — makes retries safe. */
-  idempotencyKey: z
-    .string()
-    .trim()
-    .min(8, "Missing idempotency key.")
-    .max(64)
-    .regex(/^[A-Za-z0-9_-]+$/, "Invalid idempotency key."),
-});
-
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type GoalInput = z.infer<typeof goalSchema>;

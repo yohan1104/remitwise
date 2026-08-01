@@ -1,7 +1,5 @@
 // Pure, serializable types shared between server services and client components.
 
-import type { TransferSource } from "@/lib/payments/qr-format";
-
 export interface WalletView {
   publicKey: string;
   network: string;
@@ -39,9 +37,7 @@ export interface TransactionView {
     | "savings_allocation"
     | "goal_contribution"
     | "withdrawal"
-    | "cash_out"
-    | "transfer_sent"
-    | "transfer_received";
+    | "cash_out";
   amount: number;
   asset: string;
   sender: string | null;
@@ -178,81 +174,6 @@ export interface DepositIntentView {
   interactiveUrl: string | null;
   stellarTxId: string | null;
   failureReason: string | null;
-  createdAt: string;
-  completedAt: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// QR payments
-// ---------------------------------------------------------------------------
-
-export type PaymentRequestStatusView = "active" | "paid" | "cancelled" | "expired";
-
-/** A payment request the signed-in user created, plus its scannable code. */
-export interface PaymentRequestView {
-  id: string;
-  /** null = open request; the payer enters the amount. */
-  amount: number | null;
-  asset: string;
-  note: string | null;
-  status: PaymentRequestStatusView;
-  singleUse: boolean;
-  /** `RW1.…` token encoded in the QR image. */
-  token: string;
-  /** Deep link wrapping the token, so any camera app reaches the app. */
-  link: string;
-  expiresAt: string;
-  createdAt: string;
-  paidAt: string | null;
-  /** Who paid it, once settled. */
-  paidBy: string | null;
-  amountPaid: number | null;
-}
-
-export interface PaymentRecipientView {
-  name: string;
-  /** Masked email for RemitWise users, truncated address otherwise. */
-  handle: string | null;
-  address: string;
-  isRemitWiseUser: boolean;
-}
-
-/** Everything the review screen needs, signed into `intentToken`. */
-export interface QrPaymentPreview {
-  intentToken: string;
-  intentExpiresAt: string;
-  recipient: PaymentRecipientView;
-  /** Fixed by the payee; null when the payer chooses. */
-  amount: number | null;
-  amountEditable: boolean;
-  asset: string;
-  note: string | null;
-  feeUsdc: number;
-  source: TransferSource;
-  /** Payer's spendable balance at resolve time. */
-  availableBalance: number;
-  limits: { min: number; max: number };
-  /** Present when the code came from a payment request. */
-  requestId: string | null;
-}
-
-export type TransferStatusView = "processing" | "completed" | "failed";
-
-export interface TransferView {
-  id: string;
-  amount: number;
-  feeUsdc: number;
-  totalUsdc: number;
-  asset: string;
-  note: string | null;
-  recipient: PaymentRecipientView;
-  source: TransferSource;
-  status: TransferStatusView;
-  stellarTxId: string | null;
-  explorerUrl: string | null;
-  failureReason: string | null;
-  /** Sender's available balance once this transfer settled. */
-  balanceAfter: number;
   createdAt: string;
   completedAt: string | null;
 }

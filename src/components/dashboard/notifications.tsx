@@ -1,15 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Bell,
-  ArrowDownLeft,
-  Target,
-  ArrowUpFromLine,
-  PiggyBank,
-  Landmark,
-  QrCode,
-} from "lucide-react";
+import { Bell, ArrowDownLeft, Target, ArrowUpFromLine, PiggyBank, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -90,32 +82,6 @@ function toNotification(t: TransactionView): Notification | null {
               ? `Cash-out failed — ${formatCurrency(t.amount)}`
               : `Cash-out delivered — ${formatCurrency(t.amount)}`,
         body: t.memo ?? "USDC → PHP via anchor payout",
-        at: t.createdAt,
-      };
-    case "transfer_received":
-      return {
-        id: t.id,
-        icon: QrCode,
-        color: "#059669",
-        title: `QR payment received — ${formatCurrency(t.amount)}`,
-        body: `${t.sender ?? "A RemitWise user"} paid you · added to available balance`,
-        at: t.createdAt,
-      };
-    case "transfer_sent":
-      return {
-        id: t.id,
-        icon: QrCode,
-        color: t.status === "failed" ? "#e11d48" : "#2563eb",
-        title:
-          t.status === "pending"
-            ? `Sending ${formatCurrency(t.amount)}…`
-            : t.status === "failed"
-              ? `QR payment failed — ${formatCurrency(t.amount)}`
-              : `QR payment sent — ${formatCurrency(t.amount)}`,
-        body:
-          t.status === "failed"
-            ? "Nothing left your balance."
-            : (t.memo ?? "Paid from your available balance"),
         at: t.createdAt,
       };
     default:

@@ -56,12 +56,6 @@ export const LIMITS = {
   auth: { limit: 8, windowMs: 60_000 },
   /** On-chain financial mutations: tight but demo-friendly. */
   financial: { limit: 12, windowMs: 60_000 },
-  /**
-   * QR resolution. Higher than `financial` (a scan is read-only and users
-   * legitimately scan several codes), low enough that the endpoint can't be
-   * used to probe which payment requests or Stellar addresses exist.
-   */
-  qr: { limit: 30, windowMs: 60_000 },
   /** General authenticated API traffic. */
   general: { limit: 90, windowMs: 60_000 },
 } as const;

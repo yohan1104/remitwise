@@ -9,11 +9,7 @@ export const metadata = { title: "Dashboard · RemitWise" };
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ pay?: string }>;
-}) {
+export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   // Finish guided setup before the dashboard (new accounts only).
@@ -23,11 +19,7 @@ export default async function DashboardPage({
   const wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });
   if (!wallet) await createWalletForUser(user.id);
 
-  const [initialData, { pay }] = await Promise.all([
-    getDashboardData(user.id, { includeOnChain: true }),
-    searchParams,
-  ]);
+  const initialData = await getDashboardData(user.id, { includeOnChain: true });
 
-  // Set by /qr/<token>: open the send flow on this scanned code.
-  return <Dashboard user={user} initialData={initialData} payToken={pay ?? null} />;
+  return <Dashboard user={user} initialData={initialData} />;
 }

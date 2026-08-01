@@ -24,13 +24,6 @@ export type AuditAction =
   | "deposit.intent_created"
   | "deposit.completed"
   | "deposit.failed"
-  | "payment_request.created"
-  | "payment_request.cancelled"
-  | "transfer.resolved"
-  | "transfer.rejected"
-  | "transfer.created"
-  | "transfer.completed"
-  | "transfer.failed"
   | "activity.export";
 
 export async function audit(entry: {

@@ -50,7 +50,6 @@ import { NotificationsBell } from "./notifications";
 import { AllocationCenter } from "./allocation-center";
 import { SettingsDialog } from "./settings-dialog";
 import { ReceiveMoneyDialog } from "./receive-dialog";
-import { SendMoneyDialog } from "@/components/payments/send-money-dialog";
 import { WithdrawalsCard } from "./withdrawals-card";
 import { MobileNav } from "./mobile-nav";
 import { GetStartedCard } from "./get-started";
@@ -68,19 +67,16 @@ const NAV = [
 export function Dashboard({
   user,
   initialData,
-  payToken,
 }: {
   user: PublicUser;
   initialData: DashboardData;
-  /** QR token from a deep link — opens the send flow on arrival. */
-  payToken?: string | null;
 }) {
   return (
     <DashboardProvider initialData={initialData}>
       <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
         <Sidebar />
         <div className="flex min-w-0 flex-col">
-          <Topbar user={user} payToken={payToken} />
+          <Topbar user={user} />
           <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 pb-28 sm:px-6 lg:pb-6">
             <Content userId={user.id} />
           </main>
@@ -127,12 +123,9 @@ function Sidebar() {
   );
 }
 
-function Topbar({ user, payToken }: { user: PublicUser; payToken?: string | null }) {
+function Topbar({ user }: { user: PublicUser }) {
   const { refreshing, refresh } = useDashboard();
   const router = useRouter();
-  // Consumed once, then stripped from the URL so a refresh doesn't re-open
-  // the payment (and the token stops sitting in the address bar).
-  const [pendingPay, setPendingPay] = React.useState<string | null>(payToken ?? null);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -169,15 +162,7 @@ function Topbar({ user, payToken }: { user: PublicUser; payToken?: string | null
             <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <SavingsRateDialog />
-          <ReceiveMoneyDialog className="hidden xl:inline-flex" />
-          <SendMoneyDialog
-            className="hidden md:inline-flex"
-            initialPayload={pendingPay}
-            onInitialPayloadConsumed={() => {
-              setPendingPay(null);
-              window.history.replaceState(null, "", "/dashboard");
-            }}
-          />
+          <ReceiveMoneyDialog className="hidden md:inline-flex" />
           <SimulateRemittanceButton
             trigger={
               <Button aria-label="Simulate remittance">
