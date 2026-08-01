@@ -34,6 +34,10 @@ model User {
   withdrawals  Withdrawal[]
   deposits     DepositIntent[]
 
+  paymentRequests   PaymentRequest[]
+  sentTransfers     Transfer[]       @relation("SentTransfers")
+  receivedTransfers Transfer[]       @relation("ReceivedTransfers")
+
   @@index([email])
 }
 
@@ -64,6 +68,7 @@ model Transaction {
   id       String @id @default(cuid())
   userId   String
   // remittance_received | savings_allocation | goal_contribution | withdrawal
+  // | cash_out | transfer_sent | transfer_received
   type     String
   amount   Float
   asset    String @default("USDC")
@@ -182,6 +187,89 @@ model DepositIntent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// A QR payment request created by a payee ("charge me this"). The QR encodes a
+// signed, versioned token carrying this row's id + nonce + expiry; the server
+// re-verifies the signature AND this row before any money moves, so a scanned
+// code can never be tampered with, replayed after expiry, or (when single-use)
+// paid twice. See lib/payments/qr-format.ts for the wire format.
+model PaymentRequest {
+  id     String @id @default(cuid())
+  userId String // the payee — who gets paid
+
+  // null amount = "open" request: the payer types the amount at review time.
+  amount Float?
+  asset  String  @default("USDC")
+  note   String?
+
+  // 128-bit random, part of the signed payload — binds a QR image to this row
+  // and makes tokens unguessable even if an id leaks.
+  nonce     String
+  expiresAt DateTime
+  // active | paid | cancelled | expired
+  status    String   @default("active")
+  // Single-use requests are claimed atomically at payment time (replay guard).
+  singleUse Boolean  @default(true)
+
+  paidByUserId String?
+  transferId   String?   @unique
+  paidAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+}
+
+// A person-to-person USDC transfer initiated from spendable balance (QR scan,
+// QR upload, SEP-7 URI or a pasted address). The row is the authoritative
+// record of one payment attempt: `idempotencyKey` is unique, so a retried or
+// double-submitted confirmation returns the original transfer instead of
+// sending twice. Funds are reserved (debited) before the on-chain submission
+// and refunded if it fails — never the other way round.
+model Transfer {
+  id          String  @id @default(cuid())
+  senderId    String
+  // null when paying a Stellar address that isn't a RemitWise account.
+  recipientId String?
+
+  // Snapshot of who was paid, as shown on the confirmation screen.
+  recipientAddress String
+  recipientName    String
+  recipientHandle  String?
+
+  amount    Float // what the recipient receives
+  feeUsdc   Float @default(0)
+  totalUsdc Float // amount + fee — what the sender is debited
+  asset     String @default("USDC")
+  note      String?
+
+  // qr_request | qr_address | sep7 | address — how the payee was obtained.
+  source           String  @default("qr_request")
+  paymentRequestId String?
+  idempotencyKey   String  @unique
+
+  // processing → completed | failed
+  status        String    @default("processing")
+  stellarTxId   String?
+  failureReason String?
+  completedAt   DateTime?
+  // The sender's ledger row, so a transfer interrupted mid-settlement (a crash
+  // between the debit and the on-chain submission) can be reconciled exactly.
+  ledgerTransactionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender    User  @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User? @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@index([senderId, createdAt])
+  @@index([recipientId, createdAt])
 }
 
 // Small key-value store for operational state (e.g. the Horizon payment

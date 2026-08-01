@@ -20,15 +20,15 @@ export function fail(message: string, status = 400) {
  *   const user = guard;
  */
 export async function authed(
-  bucket?: "financial",
+  bucket?: "financial" | "qr",
 ): Promise<PublicUser | NextResponse> {
   const limited = await rateLimit("general");
   if (limited) return limited;
   const user = await getCurrentUser();
   if (!user) return fail("Not authenticated.", 401);
-  if (bucket === "financial") {
-    const fin = await rateLimit("financial", user.id);
-    if (fin) return fin;
+  if (bucket) {
+    const scoped = await rateLimit(bucket, user.id);
+    if (scoped) return scoped;
   }
   return user;
 }

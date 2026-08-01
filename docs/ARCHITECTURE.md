@@ -15,6 +15,19 @@ src/lib/
     quotes.ts       FX + fee quoting (integer-stroop math, oracle-labelled)
     rails.ts        Payout corridors/banks registry (data, not code)
     currencies.ts   Sender currencies (reference rates)
+  payments/       QR payments (person-to-person, spendable balance)
+    qr-format.ts    Wire format: RW1 tokens, SEP-7 URIs, StrKey validation (isomorphic)
+    qr-sign.ts      HMAC-SHA256 token signing/verification (tamper evidence)
+    intent.ts       Short-lived signed resolution handed to the confirm step
+    resolve.ts      Scan → verified recipient + quote (the only authority)
+    transfer.ts     Reserve → settle → credit, idempotent and refund-safe
+    requests.ts     Payee-side payment codes (create/list/cancel/claim)
+    fees.ts         Limits + fee policy + review-screen math (pure)
+    errors.ts       Typed failure codes → user copy + recovery action (pure)
+  qr/             Client-side detection
+    decode.ts       BarcodeDetector with a jsQR fallback; multi-code strategies
+    image.ts        Upload decoding: validation, downscaling, multi-pass
+    use-scanner.ts  Camera lifecycle (permissions, torch, lens, frame sampling)
   payouts/
     engine.ts       Withdrawal orchestration (quote → anchor → on-chain → track)
     deposits.ts     Deposit orchestration (intent → sender pays → settle)
@@ -85,6 +98,61 @@ Status tracking: pending_anchor → converting → paying_out → completed
 
 Payout destinations come from `rails.ts` — adding a corridor is a data change.
 Phase-2 scope: Philippine banks + e-wallets (PHP).
+
+## Payment lifecycle 3 — QR payment (person to person)
+
+```
+PAYEE                                   PAYER
+POST /api/payments/requests             scan (camera) or upload (image)
+  │  PaymentRequest row + nonce           │  decode → parse → POST /api/payments/qr/resolve
+  ▼                                       ▼
+QR encodes /qr/<RW1.payload.sig>  ───▶  verify signature → re-read the row →
+  (any camera app can open it)            resolve recipient → quote fee
+                                          │
+                                          ▼  signed PaymentIntent (5 min TTL)
+                                        REVIEW: name, identifier, amount,
+                                        fee, total, balance after, note
+                                          │  explicit confirmation
+                                          ▼
+                                 POST /api/transfers { intentToken, idempotencyKey }
+                                          │
+      claim request (single-winner updateMany)  ─┐
+      reserve funds (balance CAS + Transfer + pending ledger row) [atomic]
+                                          ▼
+      user-signed USDC payment, treasury fee-bumped
+      (2 ops when a fee applies: recipient + treasury, one transaction)
+                                          ▼
+      completed: credit recipient, both ledger rows, AuditLog   [atomic]
+      failed:    refund the reservation, release the request     [atomic]
+```
+
+Accepted codes: RemitWise tokens (signed), RemitWise deep links, SEP-7
+`web+stellar:pay` URIs, and bare Stellar addresses. SEP-7 `tx` is deliberately
+refused — RemitWise never signs a transaction it did not build.
+
+Safety properties, each with a test:
+
+- **Tamper evidence.** Editing the amount or payee inside a token breaks its
+  HMAC (`qr_tampered`). The signature proves origin, not authorisation — the
+  payment request row is re-read on every resolve *and* every confirm.
+- **No client-supplied recipients.** The confirm endpoint accepts only the
+  server's own signed intent; the amount is the single client-influenced field,
+  and only when the payee left it open.
+- **No double spend.** The debit is a compare-and-set on the balance that was
+  read (exact stroop arithmetic, bounded retry), so concurrent payments cannot
+  both succeed against the same funds.
+- **No double submit.** `Transfer.idempotencyKey` is unique: a replayed
+  confirmation returns the original transfer instead of sending again.
+- **No replay of a code.** Single-use requests are claimed by an atomic status
+  flip; the loser gets `request_already_paid`.
+- **Money is never stranded.** Funds are reserved before settlement and
+  refunded if it fails, so a failed payment leaves the balance untouched and a
+  `failed` row explaining why.
+
+Fee policy: RemitWise → RemitWise is free; paying an external Stellar address
+costs a flat network fee (`FEE_TRANSFER_NETWORK_USD`, default $0.10) collected
+to the treasury *inside the same transaction*, so the on-chain debit always
+equals the mirrored one.
 
 ## Custody model
 

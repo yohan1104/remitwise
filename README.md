@@ -28,11 +28,15 @@ _Stellar MVP — real on-chain settlement, demo-ready end-to-end._
    settles on testnet; the vault contract retains 20% and releases 80% atomically.
 3. Click **"view on Stellar"** on the success screen — the tx opens on
    stellar.expert. Every transaction in the history has a verifiable hash.
-4. **Cash out to a PH bank/e-wallet** (GCash and 11 other rails): a quote-locked
+4. **Pay by QR.** Tap **Request via QR** to mint a payment code, then **Scan &
+   pay** (camera or upload) on another account: the review screen shows the
+   recipient, fee, total and your balance after — confirm and a real USDC
+   payment settles on Stellar. Codes are signed, single-use and expiring.
+5. **Cash out to a PH bank/e-wallet** (GCash and 11 other rails): a quote-locked
    USDC → ₱ payout via the SEP-24 anchor flow, fee-bumped on-chain.
-5. Open **Activity → Statements** — a printable monthly statement where every
+6. Open **Activity → Statements** — a printable monthly statement where every
    line carries its Stellar tx hash: **bankable proof of remittance income**.
-6. In AI Insights, tap **"Raise rate to 25%"** — a fee-bumped, user-signed
+7. In AI Insights, tap **"Raise rate to 25%"** — a fee-bumped, user-signed
    `set_rate` contract call.
 
 **Verify independently:** the [savings-vault contract](contracts/savings-vault/src/lib.rs)
@@ -52,10 +56,15 @@ and does it **trustlessly on Stellar**:
 3. **The Soroban vault contract enforces the split** — retains your savings
    share on-chain and releases the rest to your wallet, atomically.
 4. **Savings goals advance automatically**, and the dashboard updates live.
-5. **Cash out to pesos** — quote-locked USDC → ₱ payouts to GCash, Maya, and
+5. **Spend it in person by QR** — scan or upload a payment code and the money
+   moves wallet-to-wallet on Stellar, free between RemitWise accounts. Codes are
+   HMAC-signed (tamper-evident), single-use and expiring, and every payment is
+   idempotent and reserve-then-settle, so a retry or a dropped connection can
+   never send twice.
+6. **Cash out to pesos** — quote-locked USDC → ₱ payouts to GCash, Maya, and
    PH banks through the anchor seam (mock anchor locally, real SEP-24 client
    included).
-6. **AI generates personalized, actionable insights** from your real numbers.
+7. **AI generates personalized, actionable insights** from your real numbers.
 
 Every remittance produces a **real transaction hash you can open on
 stellar.expert**. The saved USDC is held by the contract, not a database row —
@@ -200,9 +209,10 @@ scripts/
   stellar-smoke.ts           classic asset/payment de-risk
   soroban-e2e.ts             full pipeline de-risk
 src/
-  app/                       routes: (auth), dashboard, api/*
+  app/                       routes: (auth), dashboard, qr/[token], api/*
   components/
     brand/ ui/ marketing/ auth/ dashboard/
+    payments/                ⭐ scan · upload · review · receipt · request a code
   lib/
     stellar/
       chain.ts               low-level Horizon + Soroban helpers
@@ -210,6 +220,8 @@ src/
       config.ts              loads deployed contract/treasury config
       service.ts             wallet provisioning + encrypted keys
     savings/engine.ts        ⭐ settles remittances on-chain via the vault
+    payments/                ⭐ QR payments: signed codes, resolution, transfers
+    qr/                      camera + image decoding (native detector, jsQR fallback)
     payouts/                 fiat off-ramp (quotes, cash-outs) + on-ramp deposits
     anchors/                 SEP-24 anchor seam (mock + real client) · 12 PH rails
     dashboard/service.ts     analytics + financial health
@@ -225,6 +237,12 @@ prisma/  schema.prisma · seed.ts (on-chain demo seeder)
 
 - **Wallet secrets are encrypted at rest** (AES-256-GCM), never plaintext.
 - **No insecure default in production** — the app throws if `AUTH_SECRET` is unset.
+- **QR payments are signed, not just parsed.** Codes carry an HMAC-SHA256 tag,
+  so editing the amount or payee invalidates them; the server re-reads the
+  payment request on every scan *and* every confirmation, and the client can
+  never name a recipient — it can only return the server's own signed intent.
+  Payments reserve funds before settling, are idempotent per confirmation, and
+  refund automatically if the on-chain step fails.
 - Custodial testnet keys exist only for the demo; the documented production path
   is **non-custodial signing** (Freighter/WalletConnect), which removes secret
   storage entirely. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).

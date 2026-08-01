@@ -192,6 +192,54 @@ export async function submitPaymentFeeBump(opts: {
   return { hash: res.hash };
 }
 
+/**
+ * Submit one or more payments from a zero-XLM user account in a single
+ * transaction: the user signs, the treasury fee-bumps. Multi-operation so a
+ * transfer and its service fee settle atomically — either the recipient is
+ * paid and the fee is collected, or neither happens and the sender's on-chain
+ * balance is untouched (which keeps the DB mirror exact).
+ */
+export async function submitPaymentsFeeBump(opts: {
+  horizon: Horizon.Server;
+  passphrase: string;
+  sourceSecret: string;
+  feeSourceSecret: string;
+  code: string;
+  issuer: string;
+  /** Decimal USDC amounts as strings with ≤7 dp. */
+  payments: { destination: string; amount: string }[];
+  memoText?: string;
+}): Promise<{ hash: string }> {
+  const { horizon, passphrase, payments } = opts;
+  if (payments.length === 0) throw new Error("No payments to submit.");
+  const source = Keypair.fromSecret(opts.sourceSecret);
+  const feeSource = Keypair.fromSecret(opts.feeSourceSecret);
+  const asset = new Asset(opts.code, opts.issuer);
+
+  const account = await horizon.loadAccount(source.publicKey());
+  const builder = new TransactionBuilder(account, {
+    fee: (Number(BASE_FEE) * payments.length).toString(),
+    networkPassphrase: passphrase,
+  });
+  for (const p of payments) {
+    builder.addOperation(Operation.payment({ destination: p.destination, asset, amount: p.amount }));
+  }
+  if (opts.memoText) builder.addMemo(Memo.text(opts.memoText.slice(0, 28)));
+
+  const inner = builder.setTimeout(90).build();
+  inner.sign(source);
+
+  const feeBump = TransactionBuilder.buildFeeBumpTransaction(
+    feeSource,
+    (Number(BASE_FEE) * 10 * payments.length).toString(),
+    inner,
+    passphrase,
+  );
+  feeBump.sign(feeSource);
+  const res = await horizon.submitTransaction(feeBump);
+  return { hash: res.hash };
+}
+
 export const addressArg = (publicKey: string) => new Address(publicKey).toScVal();
 export const i128Arg = (stroops: string) => nativeToScVal(stroops, { type: "i128" });
 

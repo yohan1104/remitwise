@@ -100,6 +100,10 @@ export const TRANSACTION_TYPES = {
   withdrawal: "withdrawal",
   /** USDC left the platform to a bank / e-wallet via the fiat off-ramp. */
   cash_out: "cash_out",
+  /** Person-to-person payment sent from spendable balance (QR / address). */
+  transfer_sent: "transfer_sent",
+  /** Person-to-person payment received into spendable balance. */
+  transfer_received: "transfer_received",
 } as const;
 
 /** Default auto-savings rate applied to new users. */

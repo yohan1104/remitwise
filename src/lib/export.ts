@@ -12,6 +12,8 @@ export const TX_TYPE_LABELS: Record<TransactionView["type"], string> = {
   goal_contribution: "Goal contribution",
   withdrawal: "Vault withdrawal",
   cash_out: "Bank cash-out",
+  transfer_sent: "QR payment sent",
+  transfer_received: "QR payment received",
 };
 
 /**

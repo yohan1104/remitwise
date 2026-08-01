@@ -17,6 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { truncateKey, formatCurrency } from "@/lib/utils";
 import { useDashboard } from "./dashboard-context";
 import { WithdrawDialog } from "./withdraw-dialog";
+import { ReceiveMoneyDialog } from "./receive-dialog";
+import { SendMoneyDialog } from "@/components/payments/send-money-dialog";
+import { RequestQrDialog } from "@/components/payments/request-qr-dialog";
 
 export function WalletCard() {
   const { data, refresh } = useDashboard();
@@ -75,6 +78,9 @@ export function WalletCard() {
         >
           <QRCodeSVG value={wallet.publicKey} size={126} bgColor="#ffffff" fgColor="#0f2557" level="M" />
         </motion.div>
+        <p className="-mt-1 text-center text-xs text-muted-foreground">
+          Your wallet code — anyone can scan it in RemitWise to pay you.
+        </p>
 
         <button
           onClick={copy}
@@ -138,6 +144,12 @@ export function WalletCard() {
             </Button>
           ) : (
             <>
+              {/* Everyday money movement, in the order people reach for it. */}
+              <div className="grid grid-cols-2 gap-2">
+                <SendMoneyDialog className="w-full" />
+                <RequestQrDialog className="w-full" />
+              </div>
+              <ReceiveMoneyDialog className="w-full" />
               <WithdrawDialog className="w-full" />
               <Button asChild variant="outline" className="w-full">
                 <a href={chain.explorerAccountUrl} target="_blank" rel="noreferrer">
